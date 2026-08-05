@@ -1,0 +1,2232 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bill Payments — Channel &amp; Biller Performance Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy:#1F3864; --navy-mid:#2E4E8C; --navy-deep:#0F1E36; --gold:#B08D57;
+    --bg:#F3F5F8; --card:#FFFFFF; --border:#E3E6EA; --text:#2A2E35; --muted:#6B7280;
+    --green:#158F63; --green-bg:#E6F5EE;
+    --blue:#2E5FD9; --blue-bg:#E8EEFC;
+    --amber:#B4791E; --amber-bg:#FBF1DD;
+    --purple:#7C4FC7; --purple-bg:#F1EAFB;
+    --red:#C6394A; --red-bg:#FBEAE8;
+    --shadow:0 1px 3px rgba(15,30,54,0.07), 0 1px 2px rgba(15,30,54,0.05);
+    --shadow-hover:0 10px 24px rgba(15,30,54,0.12);
+    --font-display:'Manrope','Segoe UI',Arial,sans-serif;
+    --font-body:'Inter','Segoe UI',Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font-body);background:var(--bg);color:var(--text);}
+
+  header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%);color:#fff;padding:26px 28px 22px 28px;
+    border-bottom:3px solid var(--gold);}
+  header h1{margin:0 0 5px 0;font-size:23px;font-family:var(--font-display);font-weight:800;letter-spacing:-0.2px;}
+  header .sub{font-size:13px;opacity:0.85;}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--card);padding:14px 28px;
+    border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(15,30,54,0.04);}
+  .toolbar button{padding:9px 16px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;
+    font-size:13px;cursor:pointer;font-weight:600;font-family:var(--font-body);transition:all 0.15s ease;}
+  .toolbar button.secondary{background:#fff;color:var(--navy);}
+  .toolbar button:hover{opacity:0.9;transform:translateY(-1px);box-shadow:0 4px 10px rgba(15,30,54,0.12);}
+  #unlockBtn.unlocked{background:var(--green);color:#fff;border-color:var(--green);}
+
+  main{padding:20px 28px 50px 28px;max-width:1500px;margin:0 auto;}
+
+  .section{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:24px;overflow:hidden;
+    box-shadow:var(--shadow);}
+  .section-header{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;
+    background:linear-gradient(to right, #FAFBFD, #ffffff);border-bottom:1px solid var(--border);user-select:none;}
+  .section-header:hover{background:#F1F4F8;}
+  .section-header .chevron{transition:transform 0.15s ease;font-size:12px;color:var(--navy);width:14px;}
+  .section.collapsed .chevron{transform:rotate(-90deg);}
+  .section-header .icon-badge{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;flex-shrink:0;}
+  .section-header .title{font-weight:800;color:var(--navy);font-size:16px;flex:1;font-family:var(--font-display);letter-spacing:-0.1px;}
+  .section-header .subtitle{font-size:12px;color:var(--muted);font-weight:500;}
+  .section-body{padding:20px 22px;}
+  .section.collapsed .section-body{display:none;}
+
+  #overallSection .icon-badge{background:var(--blue-bg);}
+  #channelSection .icon-badge{background:var(--purple-bg);}
+  #billersSection .icon-badge{background:var(--amber-bg);}
+  #usersSection .icon-badge{background:var(--green-bg);}
+
+  .intro-text{font-size:13.5px;color:var(--text);line-height:1.55;margin-bottom:16px;}
+
+  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .kpi-tile{background:linear-gradient(145deg,#ffffff,#F7F9FD);border:1px solid var(--border);border-radius:12px;
+    padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .kpi-tile .kpi-icon{position:absolute;right:14px;top:14px;font-size:22px;opacity:0.55;}
+  .kpi-tile .kpi-label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:6px;}
+  .kpi-tile .kpi-value{font-size:23px;font-weight:800;color:var(--navy);font-family:var(--font-display);letter-spacing:-0.3px;}
+  .kpi-tile .kpi-delta{font-size:11.5px;font-weight:700;margin-top:5px;display:inline-flex;align-items:center;gap:3px;}
+  .kpi-tile .kpi-delta.up{color:var(--green);}
+  .kpi-tile .kpi-delta.down{color:var(--red);}
+  .kpi-tile .kpi-delta.flat{color:var(--muted);}
+  .kpi-strip-label{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.6px;margin:4px 0 8px 0;}
+
+  .chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
+  .chart-card{border:1px solid var(--border);border-radius:12px;padding:16px 18px 14px 18px;background:#FFFFFF;
+    box-shadow:var(--shadow);transition:box-shadow 0.2s ease, transform 0.2s ease;position:relative;overflow:hidden;}
+  .chart-card:hover{box-shadow:var(--shadow-hover);transform:translateY(-2px);}
+  .chart-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--accent, var(--navy));}
+  .chart-card .chart-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:2px;font-family:var(--font-display);
+    display:flex;align-items:center;gap:7px;}
+  .chart-card .chart-icon{font-size:15px;}
+  .chart-card .chart-latest{font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;}
+  .chart-card svg{width:100%;height:190px;overflow:visible;}
+  .chart-legend{display:flex;gap:16px;margin-top:6px;font-size:11.5px;color:var(--muted);}
+  .chart-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .chart-legend .sw{width:10px;height:10px;border-radius:3px;}
+
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%;}
+  .table-scroll table{min-width:760px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;padding:9px 10px;background:#fff;border-bottom:2px solid var(--border);
+    color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;}
+  tbody td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody tr:hover{background:#FAFBFC;}
+  tbody td.computed{color:var(--navy);font-weight:600;background:#F7F9FC;}
+  tfoot td{padding:9px 10px;font-weight:700;border-top:2px solid var(--border);background:#FAFBFC;}
+  input.cell-input{width:100%;min-width:70px;padding:5px 7px;border:1px solid var(--border);border-radius:5px;
+    font-size:13px;font-family:inherit;}
+  input.cell-input.month-input{min-width:55px;font-weight:600;}
+  .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+    background:var(--navy);color:#fff;font-size:11px;font-weight:800;font-family:var(--font-display);margin-right:8px;}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .two-col > *{min-width:0;}
+  @media (max-width: 1100px){ .two-col{grid-template-columns:1fr;} }
+
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+  .three-col > *{min-width:0;}
+  @media (max-width: 1300px){ .three-col{grid-template-columns:1fr 1fr;} }
+  @media (max-width: 800px){ .three-col{grid-template-columns:1fr;} }
+
+  .bar-list .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .bar-list .bar-label{width:180px;flex-shrink:0;font-size:12.5px;color:var(--text);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;font-weight:600;}
+  .bar-list .bar-track{flex:1;height:18px;background:#EDEFF2;border-radius:4px;overflow:hidden;max-width:400px;}
+  .bar-list .bar-fill{height:100%;border-radius:4px;}
+  .bar-list .bar-total{width:100px;flex-shrink:0;font-size:12px;color:var(--muted);font-weight:600;text-align:right;}
+
+  .sub-section-title{font-size:13.5px;font-weight:800;color:var(--navy);font-family:var(--font-display);
+    margin:4px 0 10px 0;display:flex;align-items:center;gap:8px;}
+  .sub-section-title .dot{width:9px;height:9px;border-radius:50%;}
+
+  .month-banner{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--amber-bg);
+    border:1px solid #EFDCB3;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:#7A5A14;}
+
+  #uploadStatusBanner{margin:0 28px 0 28px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:10px;}
+  #uploadStatusBanner.info{background:var(--blue-bg);color:#1D3F91;}
+  #uploadStatusBanner.success{background:var(--green-bg);color:#0F6B49;}
+  #uploadStatusBanner.error{background:var(--red-bg);color:#8F2233;}
+  #uploadStatusBanner .spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,0.15);border-top-color:currentColor;
+    border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .staging-panel{margin:0 28px 14px 28px;padding:14px 18px;border-radius:10px;background:#FAFBFD;
+    border:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:14px;}
+  .staging-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .staging-icon{font-size:15px;}
+  .staging-label{font-weight:700;color:var(--navy);}
+  .staging-status{color:var(--muted);font-weight:600;}
+  .staging-status.ready{color:var(--green);}
+  .staging-status.mismatch{color:var(--red);}
+  #computeBtn{background:var(--green);border-color:var(--green);color:#fff;}
+  #computeBtn:disabled{background:#D9DDE3;border-color:#D9DDE3;color:#8A8F98;cursor:not-allowed;}
+
+  .month-banner-input{display:inline-block;width:auto;min-width:100px;max-width:130px;font-weight:800;
+    color:var(--navy);background:#fff;padding:4px 8px;border-radius:6px;font-size:12.5px;}
+  body.locked .month-banner-input{background:#fff !important;border:1px solid var(--border) !important;pointer-events:none;}
+
+  footer{text-align:center;padding:20px;color:var(--muted);font-size:12px;}
+
+  body.locked input.cell-input{border:1px solid transparent !important;background:transparent !important;
+    pointer-events:none;color:inherit;padding-left:0;}
+  body.locked .edit-only{display:none !important;}
+
+  #appContent{transition:filter 0.3s ease;}
+  #appContent.view-locked{filter:blur(14px);pointer-events:none;user-select:none;}
+  .view-gate-overlay{position:fixed;inset:0;background:rgba(15,30,54,0.45);display:none;
+    align-items:center;justify-content:center;z-index:1000;padding:20px;}
+  .view-gate-overlay.show{display:flex;}
+  .view-gate-card{background:#fff;border-radius:16px;padding:38px 36px;box-shadow:var(--shadow-hover);
+    text-align:center;max-width:360px;width:100%;}
+  .view-gate-icon{font-size:36px;margin-bottom:12px;}
+  .view-gate-card h2{margin:0 0 6px 0;color:var(--navy);font-family:var(--font-display);font-size:19px;font-weight:800;}
+  .view-gate-card p{color:var(--muted);font-size:13px;margin:0 0 20px 0;}
+  #viewPasswordInput{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:9px;font-size:14px;
+    margin-bottom:14px;font-family:inherit;box-sizing:border-box;}
+  #viewSubmitBtn{width:100%;padding:11px;border-radius:9px;border:none;background:var(--navy);color:#fff;
+    font-weight:700;cursor:pointer;font-size:14px;font-family:var(--font-body);}
+  .view-gate-error{color:var(--red);font-size:12.5px;margin-top:12px;min-height:16px;font-weight:600;}
+
+  @media (max-width: 1000px){ .kpi-strip{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width: 640px){
+    header{padding:16px 14px;} header h1{font-size:18px;}
+    .toolbar{padding:10px 14px;} main{padding:14px 14px 30px 14px;}
+    .chart-grid{grid-template-columns:1fr;}
+    .kpi-strip{grid-template-columns:1fr 1fr;gap:10px;}
+    .kpi-tile{padding:12px 14px;}
+    .kpi-tile .kpi-value{font-size:17px;word-break:break-word;}
+    .bar-list .bar-label{width:120px;font-size:11.5px;}
+  }
+</style>
+</head>
+<body class="">
+
+<div class="view-gate-overlay" id="viewGateOverlay">
+  <div class="view-gate-card">
+    <div class="view-gate-icon">🔒</div>
+    <h2>Bill Payments — Channel &amp; Biller Report</h2>
+    <p>Enter the password to view this report.</p>
+    <input type="password" id="viewPasswordInput" placeholder="Password" autocomplete="off">
+    <button id="viewSubmitBtn">View Report</button>
+    <div class="view-gate-error" id="viewGateError"></div>
+  </div>
+</div>
+
+<div id="appContent">
+
+<header>
+  <h1>Bill Payments — Channel &amp; Biller Performance Report</h1>
+</header>
+
+<div class="toolbar">
+  <button class="secondary unlocked" id="unlockBtn">🔓 Editing Enabled (Click to Lock)</button>
+  <button class="secondary edit-only" id="uploadMonthBtn">📤 Upload New Month's Data</button>
+  <input type="file" id="uploadFileInput" accept=".xlsx,.xls" style="display:none">
+  <button class="secondary edit-only" id="uploadCoreBtn">📤 Upload Core Data</button>
+  <input type="file" id="uploadCoreFileInput" accept=".xlsx,.xls" style="display:none">
+  <button class="secondary edit-only" id="publishBtn">Publish Updated Site</button>
+  <button class="secondary" id="exportBtn">Export CSV</button>
+  <button class="secondary edit-only" id="resetBtn">Reset to Original Data</button>
+</div>
+<div class="staging-panel edit-only" id="stagingPanel" style="display: none;">
+  <div class="staging-row">
+    <span class="staging-icon">📄</span>
+    <span class="staging-label">Branch + Branchless:</span>
+    <span class="staging-status ready" id="stagingMainStatus">Staged for July 2026 (8,559 rows) — "BranchBranchless_July2026.xlsx"</span>
+  </div>
+  <div class="staging-row">
+    <span class="staging-icon">📄</span>
+    <span class="staging-label">Core:</span>
+    <span class="staging-status ready" id="stagingCoreStatus">Staged for July 2026 (1,281 rows) — "Core_July2026.xlsx"</span>
+  </div>
+  <button class="secondary" id="computeBtn">Compute July 2026</button>
+  <button class="secondary" id="clearStagingBtn" style="border-color:var(--red);color:var(--red);">Clear Staged Files</button>
+</div>
+<div id="uploadStatusBanner" style="display: flex;" class="success">✅ Computed <b>July 2026</b> from both files — Branch, Branchless, and Core monthly figures updated, and Top 8 Billers/Users recalculated for that month.</div>
+
+<main>
+
+  <div class="section" id="overallSection">
+    <div class="section-header" onclick="toggleSection('overallSection')">
+      <span class="chevron">▼</span>
+      <span class="icon-badge">📈</span>
+      <span class="title">Overall Portfolio Performance</span>
+      <span class="subtitle">All channels combined</span>
+    </div>
+    <div class="section-body">
+      <div class="kpi-strip-label" id="latestMonthLabel">Latest Complete Month (Jul) vs Prior Month</div>
+      <div class="kpi-strip" id="overallKpiStrip">
+      <div class="kpi-tile">
+        <span class="kpi-icon">👥</span>
+        <div class="kpi-label">Active Users</div>
+        <div class="kpi-value">2,265</div>
+        <div class="kpi-delta up">▲ 3.1% MoM</div>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-icon">🔁</span>
+        <div class="kpi-label">Transactions</div>
+        <div class="kpi-value">9,840</div>
+        <div class="kpi-delta up">▲ 3.9% MoM</div>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-icon">💵</span>
+        <div class="kpi-label">Amount Paid</div>
+        <div class="kpi-value">Rs 380,720,576</div>
+        <div class="kpi-delta down">▼ 58.2% MoM</div>
+      </div>
+      <div class="kpi-tile">
+        <span class="kpi-icon">💰</span>
+        <div class="kpi-label">Revenue</div>
+        <div class="kpi-value">106,431</div>
+        <div class="kpi-delta up">▲ 3.8% MoM</div>
+      </div></div>
+      <div class="kpi-strip-label" id="cumulativeLabel">7 Complete Months Cumulative (Unique / Total)</div>
+      <div class="kpi-strip" id="overallTotalStrip">
+    <div class="kpi-tile">
+      <span class="kpi-icon">👥</span>
+      <div class="kpi-label">Total Users</div>
+      <div class="kpi-value">14,844</div>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-icon">🔁</span>
+      <div class="kpi-label">Total Transactions</div>
+      <div class="kpi-value">64,495</div>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-icon">💵</span>
+      <div class="kpi-label">Total Amount</div>
+      <div class="kpi-value">Rs 3,248,961,652</div>
+    </div>
+    <div class="kpi-tile">
+      <span class="kpi-icon">💰</span>
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">634,431</div>
+    </div></div>
+      <textarea class="intro-text" id="overallIntro" style="width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; min-height: 50px; font-family: inherit; font-size: 13.5px; resize: vertical; height: 64px;"></textarea>
+      <div class="chart-grid" id="overallChartGrid">
+      <div class="chart-card" style="--accent:#158F63">
+        <div class="chart-title"><span class="chart-icon">💰</span>Revenue</div>
+        <div class="chart-latest">Jul: 106,431</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_revenue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#158F63" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#158F63" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">62.8K</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">125.6K</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,65.7 L92.3,72.6 L138.7,71.9 L185.0,68.2 L231.3,67.3 L277.7,49.7 L324.0,45.4 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_revenue)" stroke="none"></path>
+    <path d="M46.0,65.7 L92.3,72.6 L138.7,71.9 L185.0,68.2 L231.3,67.3 L277.7,49.7 L324.0,45.4" fill="none" stroke="#158F63" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="65.7" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="72.6" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="71.9" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="68.2" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="67.3" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="49.7" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="45.4" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="57.7" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">88.2K</text><text x="92.3" y="86.6" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">82.0K</text><text x="138.7" y="63.9" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">82.6K</text><text x="185.0" y="60.2" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">85.9K</text><text x="231.3" y="59.3" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">86.8K</text><text x="277.7" y="41.7" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">102.5K</text><text x="324.0" y="37.4" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">106.4K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">👥</span>Active Users</div>
+        <div class="chart-latest">Jul: 2,265</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_users" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2E5FD9" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#2E5FD9" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">1.3K</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">2.7K</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,50.5 L92.3,56.3 L138.7,58.0 L185.0,57.7 L231.3,53.6 L277.7,48.9 L324.0,45.4 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_users)" stroke="none"></path>
+    <path d="M46.0,50.5 L92.3,56.3 L138.7,58.0 L185.0,57.7 L231.3,53.6 L277.7,48.9 L324.0,45.4" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="50.5" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="56.3" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="58.0" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="57.7" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="53.6" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="48.9" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="45.4" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="42.5" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.2K</text><text x="92.3" y="70.3" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.1K</text><text x="138.7" y="72.0" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.0K</text><text x="185.0" y="49.7" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.0K</text><text x="231.3" y="45.6" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.1K</text><text x="277.7" y="40.9" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.2K</text><text x="324.0" y="37.4" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.3K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div>
+      <div class="chart-card" style="--accent:#158F63">
+        <div class="chart-title"><span class="chart-icon">🔁</span>Transactions</div>
+        <div class="chart-latest">Jul: 9,840</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_trxs" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#158F63" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#158F63" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">5.8K</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">11.6K</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,50.5 L92.3,55.5 L138.7,57.9 L185.0,54.4 L231.3,56.9 L277.7,49.8 L324.0,45.4 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_trxs)" stroke="none"></path>
+    <path d="M46.0,50.5 L92.3,55.5 L138.7,57.9 L185.0,54.4 L231.3,56.9 L277.7,49.8 L324.0,45.4" fill="none" stroke="#158F63" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="50.5" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="55.5" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="57.9" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="54.4" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="56.9" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="49.8" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="45.4" r="3.4" fill="#158F63" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="42.5" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">9.4K</text><text x="92.3" y="69.5" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">9.0K</text><text x="138.7" y="71.9" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">8.8K</text><text x="185.0" y="46.4" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">9.1K</text><text x="231.3" y="70.9" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">8.9K</text><text x="277.7" y="41.8" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">9.5K</text><text x="324.0" y="37.4" font-size="9.5" fill="#158F63" text-anchor="middle" font-weight="700">9.8K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div>
+      <div class="chart-card" style="--accent:#B4791E">
+        <div class="chart-title"><span class="chart-icon">💵</span>Amount</div>
+        <div class="chart-latest">Jul: Rs 380,720,576</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_amount" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B4791E" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#B4791E" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">537.8M</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">1.08B</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,118.1 L92.3,132.2 L138.7,115.9 L185.0,91.3 L231.3,107.7 L277.7,45.4 L324.0,114.4 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_amount)" stroke="none"></path>
+    <path d="M46.0,118.1 L92.3,132.2 L138.7,115.9 L185.0,91.3 L231.3,107.7 L277.7,45.4 L324.0,114.4" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="118.1" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="132.2" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="115.9" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="91.3" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="107.7" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="45.4" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="114.4" r="3.4" fill="#B4791E" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="110.1" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">352.4M</text><text x="92.3" y="146.2" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">244.1M</text><text x="138.7" y="107.9" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">369.9M</text><text x="185.0" y="83.3" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">558.1M</text><text x="231.3" y="121.7" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">432.3M</text><text x="277.7" y="37.4" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">911.4M</text><text x="324.0" y="128.4" font-size="9.5" fill="#B4791E" text-anchor="middle" font-weight="700">380.7M</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div>
+      <div class="chart-card" style="--accent:#7C4FC7">
+        <div class="chart-title"><span class="chart-icon">🎫</span>Ticket Size</div>
+        <div class="chart-latest">Jul: Rs 38,691</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_ticketSize" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7C4FC7" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#7C4FC7" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">56.8K</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">113.5K</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,117.8 L92.3,130.5 L138.7,112.2 L185.0,88.3 L231.3,104.0 L277.7,45.4 L324.0,116.3 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_ticketSize)" stroke="none"></path>
+    <path d="M46.0,117.8 L92.3,130.5 L138.7,112.2 L185.0,88.3 L231.3,104.0 L277.7,45.4 L324.0,116.3" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="117.8" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="130.5" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="112.2" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="88.3" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="104.0" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="45.4" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="116.3" r="3.4" fill="#7C4FC7" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="109.8" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">37.4K</text><text x="92.3" y="144.5" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">27.1K</text><text x="138.7" y="104.2" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">42.0K</text><text x="185.0" y="80.3" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">61.4K</text><text x="231.3" y="118.0" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">48.7K</text><text x="277.7" y="37.4" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">96.2K</text><text x="324.0" y="130.3" font-size="9.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">38.7K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div>
+      <div class="chart-card" style="--accent:#C6394A">
+        <div class="chart-title"><span class="chart-icon">🔄</span>Trx / User</div>
+        <div class="chart-latest">Jul: 4.34</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_trxPerUser" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C6394A" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#C6394A" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0.00</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">2.64</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">5.28</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,48.9 L92.3,48.2 L138.7,48.7 L185.0,45.4 L231.3,52.3 L277.7,49.8 L324.0,48.9 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_trxPerUser)" stroke="none"></path>
+    <path d="M46.0,48.9 L92.3,48.2 L138.7,48.7 L185.0,45.4 L231.3,52.3 L277.7,49.8 L324.0,48.9" fill="none" stroke="#C6394A" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="48.9" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="48.2" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="48.7" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="45.4" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="52.3" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="49.8" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="48.9" r="3.4" fill="#C6394A" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="40.9" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.35</text><text x="92.3" y="40.2" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.37</text><text x="138.7" y="62.7" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.35</text><text x="185.0" y="37.4" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.48</text><text x="231.3" y="66.3" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.22</text><text x="277.7" y="41.8" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.31</text><text x="324.0" y="40.9" font-size="9.5" fill="#C6394A" text-anchor="middle" font-weight="700">4.34</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">🛍</span>User Spend</div>
+        <div class="chart-latest">Jul: Rs 168,089</div>
+        <svg viewBox="0 0 340 190">
+    <defs><linearGradient id="grad_overallChartGrid_userSpend" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2E5FD9" stop-opacity="0.30"></stop>
+      <stop offset="100%" stop-color="#2E5FD9" stop-opacity="0.02"></stop>
+    </linearGradient></defs>
+    <line x1="46" y1="164.0" x2="324" y2="164.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="167.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="94.0" x2="324" y2="94.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="97.0" font-size="9" fill="#9AA0A6" text-anchor="end">244.8K</text><line x1="46" y1="24.0" x2="324" y2="24.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="27.0" font-size="9" fill="#9AA0A6" text-anchor="end">489.5K</text>
+    <line x1="46" y1="24" x2="46" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="164" x2="324" y2="164" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,117.5 L92.3,130.1 L138.7,111.7 L185.0,85.3 L231.3,105.3 L277.7,45.4 L324.0,115.9 L324.0,164 L46.0,164 Z" fill="url(#grad_overallChartGrid_userSpend)" stroke="none"></path>
+    <path d="M46.0,117.5 L92.3,130.1 L138.7,111.7 L185.0,85.3 L231.3,105.3 L277.7,45.4 L324.0,115.9" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="46.0" cy="117.5" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="92.3" cy="130.1" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="138.7" cy="111.7" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="185.0" cy="85.3" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="231.3" cy="105.3" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="277.7" cy="45.4" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><circle cx="324.0" cy="115.9" r="3.4" fill="#2E5FD9" stroke="#fff" stroke-width="1.6"></circle><text x="46.0" y="109.5" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">162.7K</text><text x="92.3" y="144.1" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">118.7K</text><text x="138.7" y="103.7" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">182.8K</text><text x="185.0" y="77.3" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">275.1K</text><text x="231.3" y="119.3" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">205.2K</text><text x="277.7" y="37.4" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">414.9K</text><text x="324.0" y="129.9" font-size="9.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">168.1K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+      </div></div>
+      <div class="table-scroll" style="margin-top:18px;">
+        <table>
+          <thead><tr id="overallHeadRow"><th>Month</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Revenue</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th></tr></thead>
+          <tbody id="overallBody"><tr><td style="font-weight:600;">Jan</td><td>2,166</td><td>9,414</td><td>Rs 352,391,032</td><td>88,173</td><td class="computed">Rs 37,433</td><td class="computed">4.35</td><td class="computed">Rs 162,692</td></tr><tr><td style="font-weight:600;">Feb</td><td>2,057</td><td>8,995</td><td>Rs 244,100,350</td><td>82,032</td><td class="computed">Rs 27,137</td><td class="computed">4.37</td><td class="computed">Rs 118,668</td></tr><tr><td style="font-weight:600;">Mar</td><td>2,023</td><td>8,801</td><td>Rs 369,895,801</td><td>82,579</td><td class="computed">Rs 42,029</td><td class="computed">4.35</td><td class="computed">Rs 182,845</td></tr><tr><td style="font-weight:600;">Apr</td><td>2,029</td><td>9,087</td><td>Rs 558,112,391</td><td>85,949</td><td class="computed">Rs 61,419</td><td class="computed">4.48</td><td class="computed">Rs 275,068</td></tr><tr><td style="font-weight:600;">May</td><td>2,107</td><td>8,884</td><td>Rs 432,294,209</td><td>86,760</td><td class="computed">Rs 48,660</td><td class="computed">4.22</td><td class="computed">Rs 205,170</td></tr><tr><td style="font-weight:600;">Jun</td><td>2,197</td><td>9,474</td><td>Rs 911,447,293</td><td>102,508</td><td class="computed">Rs 96,205</td><td class="computed">4.31</td><td class="computed">Rs 414,860</td></tr><tr><td style="font-weight:600;">Jul</td><td>2,265</td><td>9,840</td><td>Rs 380,720,576</td><td>106,431</td><td class="computed">Rs 38,691</td><td class="computed">4.34</td><td class="computed">Rs 168,089</td></tr></tbody>
+          <tfoot id="overallFoot">
+    <tr><td>Total / Avg</td><td>14,844</td><td>64,495</td><td>Rs 3,248,961,652</td>
+    <td>634,431</td><td>Rs 50,375</td><td>4.34</td><td>Rs 218,874</td></tr></tfoot>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">This table is auto-calculated as Branch + Branchless + Core combined — edit those three tables below and this updates itself.</div>
+    </div>
+  </div>
+
+  <div class="section" id="channelSection">
+    <div class="section-header" onclick="toggleSection('channelSection')">
+      <span class="chevron">▼</span>
+      <span class="icon-badge">🔐</span>
+      <span class="title">Branch vs. Branchless vs. Core Comparison</span>
+      <span class="subtitle">Web/USSD vs Mobile App vs Core Banking</span>
+    </div>
+    <div class="section-body">
+      <div class="chart-grid" id="comparisonChartGrid">
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">💰</span>Revenue</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">32.4K</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">64.8K</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,70.6 L92.3,81.2 L138.7,74.2 L185.0,74.6 L231.3,71.8 L277.7,64.7 L324.0,54.3" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,95.8 L92.3,94.3 L138.7,99.6 L185.0,95.0 L231.3,97.1 L277.7,79.4 L324.0,83.7" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,138.5 L92.3,140.7 L138.7,141.4 L185.0,139.4 L231.3,138.5 L277.7,134.2 L324.0,132.9" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="70.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="81.2" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="74.2" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="74.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="71.8" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="64.7" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="54.3" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="95.8" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="94.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="99.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="95.0" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="97.1" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="79.4" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="83.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="138.5" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="140.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="141.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="139.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="138.5" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="134.2" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="132.9" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="62.6" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">46.2K</text><text x="92.3" y="73.2" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">40.4K</text><text x="138.7" y="66.2" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">44.2K</text><text x="185.0" y="66.6" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">44.0K</text><text x="231.3" y="63.8" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">45.5K</text><text x="277.7" y="56.7" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">49.3K</text><text x="324.0" y="46.3" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">54.9K</text><text x="46.0" y="87.8" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">32.5K</text><text x="92.3" y="86.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">33.3K</text><text x="138.7" y="91.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">30.5K</text><text x="185.0" y="87.0" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">33.0K</text><text x="231.3" y="89.1" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">31.8K</text><text x="277.7" y="71.4" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">41.4K</text><text x="324.0" y="75.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">39.0K</text><text x="46.0" y="130.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">9.5K</text><text x="92.3" y="132.7" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">8.3K</text><text x="138.7" y="133.4" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">7.9K</text><text x="185.0" y="131.4" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">9.0K</text><text x="231.3" y="130.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">9.5K</text><text x="277.7" y="126.2" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">11.8K</text><text x="324.0" y="124.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">12.5K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">👥</span>Active Users</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">988</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">2.0K</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,54.3 L92.3,60.7 L138.7,60.5 L185.0,62.2 L231.3,63.1 L277.7,60.0 L324.0,56.7" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,148.5 L92.3,148.6 L138.7,149.0 L185.0,148.3 L231.3,148.6 L277.7,148.5 L324.0,149.2" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,133.6 L92.3,133.7 L138.7,135.6 L185.0,134.3 L231.3,128.2 L277.7,126.1 L324.0,124.5" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="54.3" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="60.7" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="60.5" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="62.2" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="63.1" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="60.0" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="56.7" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="148.5" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="148.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="149.0" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="148.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="148.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="148.5" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="149.2" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="133.6" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="133.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="135.6" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="134.3" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="128.2" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="126.1" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="124.5" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="46.3" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.7K</text><text x="92.3" y="52.7" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.6K</text><text x="138.7" y="52.5" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.6K</text><text x="185.0" y="54.2" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.5K</text><text x="231.3" y="55.1" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.5K</text><text x="277.7" y="52.0" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.6K</text><text x="324.0" y="48.7" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">1.6K</text><text x="46.0" y="140.5" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">123</text><text x="92.3" y="140.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">122</text><text x="138.7" y="141.0" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">116</text><text x="185.0" y="140.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">127</text><text x="231.3" y="140.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">121</text><text x="277.7" y="140.5" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">124</text><text x="324.0" y="141.2" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">112</text><text x="46.0" y="125.6" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">369</text><text x="92.3" y="125.7" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">367</text><text x="138.7" y="127.6" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">335</text><text x="185.0" y="126.3" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">358</text><text x="231.3" y="120.2" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">457</text><text x="277.7" y="118.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">492</text><text x="324.0" y="116.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">518</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">🔁</span>Transactions</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">3.0K</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">5.9K</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,61.2 L92.3,68.6 L138.7,65.6 L185.0,64.5 L231.3,67.7 L277.7,64.8 L324.0,54.3" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,80.5 L92.3,78.4 L138.7,84.9 L185.0,81.8 L231.3,86.1 L277.7,81.3 L324.0,84.8" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,136.1 L92.3,139.3 L138.7,139.7 L185.0,138.1 L231.3,134.7 L277.7,130.5 L324.0,130.1" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="61.2" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="68.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="65.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="64.5" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="67.7" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="64.8" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="54.3" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="80.5" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="78.4" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="84.9" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="81.8" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="86.1" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="81.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="84.8" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="136.1" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="139.3" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="139.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="138.1" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="134.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="130.5" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="130.1" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="53.2" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">4.7K</text><text x="92.3" y="60.6" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">4.3K</text><text x="138.7" y="57.6" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">4.5K</text><text x="185.0" y="56.5" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">4.5K</text><text x="231.3" y="59.7" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">4.4K</text><text x="277.7" y="56.8" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">4.5K</text><text x="324.0" y="46.3" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">5.0K</text><text x="46.0" y="72.5" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.7K</text><text x="92.3" y="73.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.8K</text><text x="138.7" y="76.9" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.5K</text><text x="185.0" y="73.8" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.7K</text><text x="231.3" y="78.1" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.5K</text><text x="277.7" y="73.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.7K</text><text x="324.0" y="76.8" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.5K</text><text x="46.0" y="128.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">983</text><text x="92.3" y="131.3" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">827</text><text x="138.7" y="131.7" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">807</text><text x="185.0" y="130.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">888</text><text x="231.3" y="126.7" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">1.1K</text><text x="277.7" y="122.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">1.3K</text><text x="324.0" y="122.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">1.3K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">💵</span>Amount</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">399.6M</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">799.2M</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,134.6 L92.3,142.0 L138.7,136.6 L185.0,135.1 L231.3,126.6 L277.7,123.2 L324.0,136.8" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,126.7 L92.3,134.9 L138.7,121.4 L185.0,95.2 L231.3,122.5 L277.7,54.3 L324.0,120.4" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,153.9 L92.3,154.4 L138.7,154.4 L185.0,153.9 L231.3,154.0 L277.7,153.6 L324.0,153.7" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="134.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="142.0" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="136.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="135.1" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="126.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="123.2" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="136.8" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="126.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="134.9" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="121.4" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="95.2" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="122.5" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="54.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="120.4" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="153.9" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="154.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="154.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="153.9" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="154.0" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="153.6" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="153.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="131.7" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">142.7M</text><text x="92.3" y="139.9" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">93.2M</text><text x="138.7" y="128.6" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">128.9M</text><text x="185.0" y="127.1" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">139.0M</text><text x="231.3" y="127.5" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">195.7M</text><text x="277.7" y="115.2" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">218.5M</text><text x="324.0" y="128.8" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">128.1M</text><text x="46.0" y="118.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">195.4M</text><text x="92.3" y="126.9" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">140.4M</text><text x="138.7" y="113.4" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">230.2M</text><text x="185.0" y="87.2" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">405.1M</text><text x="231.3" y="114.5" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">223.4M</text><text x="277.7" y="46.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">677.2M</text><text x="324.0" y="112.4" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">237.2M</text><text x="46.0" y="145.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">14.3M</text><text x="92.3" y="152.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">10.5M</text><text x="138.7" y="146.4" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">10.8M</text><text x="185.0" y="145.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">14.0M</text><text x="231.3" y="146.0" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">13.2M</text><text x="277.7" y="145.6" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">15.7M</text><text x="324.0" y="145.7" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">15.4M</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">🎫</span>Ticket Size</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">108.1K</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">216.2K</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,139.1 L92.3,144.0 L138.7,140.0 L185.0,139.0 L231.3,131.2 L277.7,129.1 L324.0,141.9" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,127.0 L92.3,135.7 L138.7,119.7 L185.0,94.7 L231.3,120.1 L277.7,54.3 L324.0,118.6" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,147.9 L92.3,149.0 L138.7,148.6 L185.0,147.2 L231.3,149.1 L277.7,149.1 L324.0,149.3" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="139.1" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="144.0" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="140.0" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="139.0" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="131.2" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="129.1" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="141.9" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="127.0" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="135.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="119.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="94.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="120.1" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="54.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="118.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="147.9" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="149.0" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="148.6" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="147.2" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="149.1" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="149.1" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="149.3" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="132.0" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">30.4K</text><text x="92.3" y="140.7" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">21.5K</text><text x="138.7" y="132.0" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">28.8K</text><text x="185.0" y="131.0" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">30.7K</text><text x="231.3" y="125.1" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">44.8K</text><text x="277.7" y="121.1" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">48.4K</text><text x="324.0" y="133.9" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">25.4K</text><text x="46.0" y="119.0" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">52.3K</text><text x="92.3" y="127.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">36.5K</text><text x="138.7" y="111.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">65.4K</text><text x="185.0" y="86.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">110.4K</text><text x="231.3" y="112.1" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">64.6K</text><text x="277.7" y="46.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">183.2K</text><text x="324.0" y="110.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">67.3K</text><text x="46.0" y="145.0" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">14.6K</text><text x="92.3" y="153.7" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">12.7K</text><text x="138.7" y="145.0" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">13.3K</text><text x="185.0" y="144.0" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">15.8K</text><text x="231.3" y="141.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">12.5K</text><text x="277.7" y="141.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">12.5K</text><text x="324.0" y="146.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">12.1K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">🔄</span>Trx / User</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0.00</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">18.59</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">37.17</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,146.9 L92.3,147.1 L138.7,146.8 L185.0,146.5 L231.3,146.8 L277.7,146.8 L324.0,146.1" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,57.9 L92.3,54.3 L138.7,58.0 L185.0,62.7 L231.3,63.7 L277.7,59.7 L324.0,54.4" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,147.4 L92.3,148.7 L138.7,148.2 L185.0,148.0 L231.3,148.6 L277.7,147.7 L324.0,148.0" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="146.9" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="147.1" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="146.8" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="146.5" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="146.8" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="146.8" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="146.1" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="57.9" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="54.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="58.0" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="62.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="63.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="59.7" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="54.4" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="147.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="148.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="148.2" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="148.0" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="148.6" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="147.7" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="148.0" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="138.9" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.80</text><text x="92.3" y="139.1" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.76</text><text x="138.7" y="138.8" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.85</text><text x="185.0" y="138.5" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.93</text><text x="231.3" y="138.8" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.86</text><text x="277.7" y="138.8" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">2.86</text><text x="324.0" y="138.1" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">3.08</text><text x="46.0" y="49.9" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">30.39</text><text x="92.3" y="46.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">31.50</text><text x="138.7" y="50.0" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">30.34</text><text x="185.0" y="54.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">28.91</text><text x="231.3" y="55.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">28.58</text><text x="277.7" y="51.7" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">29.81</text><text x="324.0" y="46.4" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">31.47</text><text x="46.0" y="151.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.66</text><text x="92.3" y="152.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.25</text><text x="138.7" y="151.8" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.41</text><text x="185.0" y="151.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.48</text><text x="231.3" y="151.8" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.30</text><text x="277.7" y="151.8" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.57</text><text x="324.0" y="151.1" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">2.47</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div>
+      <div class="chart-card" style="--accent:#2E5FD9">
+        <div class="chart-title"><span class="chart-icon">🛍</span>User Spend</div>
+        <div class="chart-latest">Solid = Branchless · Dashed = Branch · Dotted = Core</div>
+        <svg viewBox="0 0 340 190">
+    <line x1="46" y1="156.0" x2="324" y2="156.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="159.0" font-size="9" fill="#9AA0A6" text-anchor="end">0</text><line x1="46" y1="96.0" x2="324" y2="96.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="99.0" font-size="9" fill="#9AA0A6" text-anchor="end">3.2M</text><line x1="46" y1="36.0" x2="324" y2="36.0" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"></line>
+      <text x="40" y="39.0" font-size="9" fill="#9AA0A6" text-anchor="end">6.4M</text>
+    <line x1="46" y1="36" x2="46" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <line x1="46" y1="156" x2="324" y2="156" stroke="#D9DDE3" stroke-width="1"></line>
+    <path d="M46.0,154.4 L92.3,154.9 L138.7,154.5 L185.0,154.3 L231.3,153.6 L277.7,153.4 L324.0,154.5" fill="none" stroke="#2E5FD9" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path><path d="M46.0,126.4 L92.3,134.6 L138.7,119.0 L185.0,96.6 L231.3,121.6 L277.7,54.3 L324.0,116.6" fill="none" stroke="#B4791E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"></path><path d="M46.0,155.3 L92.3,155.5 L138.7,155.4 L185.0,155.3 L231.3,155.5 L277.7,155.4 L324.0,155.4" fill="none" stroke="#7C4FC7" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,3"></path><circle cx="46.0" cy="154.4" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="154.9" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="154.5" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="154.3" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="153.6" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="153.4" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="154.5" r="3" fill="#2E5FD9" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="126.4" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="134.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="119.0" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="96.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="121.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="54.3" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="116.6" r="3" fill="#B4791E" stroke="#fff" stroke-width="1.4"></circle><circle cx="46.0" cy="155.3" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="92.3" cy="155.5" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="138.7" cy="155.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="185.0" cy="155.3" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="231.3" cy="155.5" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="277.7" cy="155.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><circle cx="324.0" cy="155.4" r="3" fill="#7C4FC7" stroke="#fff" stroke-width="1.4"></circle><text x="46.0" y="146.4" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">85.2K</text><text x="92.3" y="146.9" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">59.4K</text><text x="138.7" y="146.5" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">82.0K</text><text x="185.0" y="146.3" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">90.0K</text><text x="231.3" y="145.6" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">128.0K</text><text x="277.7" y="145.4" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">138.2K</text><text x="324.0" y="146.5" font-size="8.5" fill="#2E5FD9" text-anchor="middle" font-weight="700">78.3K</text><text x="46.0" y="118.4" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">1.6M</text><text x="92.3" y="126.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">1.2M</text><text x="138.7" y="111.0" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">2.0M</text><text x="185.0" y="88.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">3.2M</text><text x="231.3" y="113.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">1.8M</text><text x="277.7" y="46.3" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">5.5M</text><text x="324.0" y="108.6" font-size="8.5" fill="#B4791E" text-anchor="middle" font-weight="700">2.1M</text><text x="46.0" y="159.4" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">38.8K</text><text x="92.3" y="159.9" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">28.6K</text><text x="138.7" y="159.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">32.1K</text><text x="185.0" y="159.3" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">39.1K</text><text x="231.3" y="158.6" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">28.8K</text><text x="277.7" y="158.4" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">32.0K</text><text x="324.0" y="159.5" font-size="8.5" fill="#7C4FC7" text-anchor="middle" font-weight="700">29.8K</text><text x="46.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jan</text><text x="92.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Feb</text><text x="138.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Mar</text><text x="185.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Apr</text><text x="231.3" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">May</text><text x="277.7" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jun</text><text x="324.0" y="182" font-size="9.5" fill="#6B7280" text-anchor="middle">Jul</text>
+  </svg>
+        <div class="chart-legend">
+          <span><span class="sw" style="background:#2E5FD9"></span>Branchless</span>
+          <span><span class="sw" style="background:#B4791E"></span>Branch</span>
+          <span><span class="sw" style="background:#7C4FC7"></span>Core</span>
+        </div>
+      </div></div>
+
+      <div class="three-col" style="margin-top:22px;">
+        <div>
+          <div class="sub-section-title"><span class="dot" style="background:var(--blue);"></span>Branchless (Mobile App) — Monthly</div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr id="branchlessHeadRow"><th>Month</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Revenue</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th></tr></thead>
+              <tbody id="branchlessBody"><tr><td><input class="cell-input month-input" data-idx="0" data-field="month" value="Jan"></td><td><input class="cell-input" type="number" data-idx="0" data-field="users" value="1674"></td><td><input class="cell-input" type="number" data-idx="0" data-field="trxs" value="4693"></td><td><input class="cell-input" type="number" step="0.01" data-idx="0" data-field="amount" value="142701743.98"></td><td><input class="cell-input" type="number" step="0.01" data-idx="0" data-field="revenue" value="46152.25"></td><td class="computed">Rs 30,407</td><td class="computed">2.80</td><td class="computed">Rs 85,246</td></tr><tr><td><input class="cell-input month-input" data-idx="1" data-field="month" value="Feb"></td><td><input class="cell-input" type="number" data-idx="1" data-field="users" value="1568"></td><td><input class="cell-input" type="number" data-idx="1" data-field="trxs" value="4325"></td><td><input class="cell-input" type="number" step="0.01" data-idx="1" data-field="amount" value="93179127.45"></td><td><input class="cell-input" type="number" step="0.01" data-idx="1" data-field="revenue" value="40432"></td><td class="computed">Rs 21,544</td><td class="computed">2.76</td><td class="computed">Rs 59,425</td></tr><tr><td><input class="cell-input month-input" data-idx="2" data-field="month" value="Mar"></td><td><input class="cell-input" type="number" data-idx="2" data-field="users" value="1572"></td><td><input class="cell-input" type="number" data-idx="2" data-field="trxs" value="4474"></td><td><input class="cell-input" type="number" step="0.01" data-idx="2" data-field="amount" value="128926958.51"></td><td><input class="cell-input" type="number" step="0.01" data-idx="2" data-field="revenue" value="44200"></td><td class="computed">Rs 28,817</td><td class="computed">2.85</td><td class="computed">Rs 82,015</td></tr><tr><td><input class="cell-input month-input" data-idx="3" data-field="month" value="Apr"></td><td><input class="cell-input" type="number" data-idx="3" data-field="users" value="1544"></td><td><input class="cell-input" type="number" data-idx="3" data-field="trxs" value="4528"></td><td><input class="cell-input" type="number" step="0.01" data-idx="3" data-field="amount" value="138978520.48"></td><td><input class="cell-input" type="number" step="0.01" data-idx="3" data-field="revenue" value="43989.25"></td><td class="computed">Rs 30,693</td><td class="computed">2.93</td><td class="computed">Rs 90,012</td></tr><tr><td><input class="cell-input month-input" data-idx="4" data-field="month" value="May"></td><td><input class="cell-input" type="number" data-idx="4" data-field="users" value="1529"></td><td><input class="cell-input" type="number" data-idx="4" data-field="trxs" value="4373"></td><td><input class="cell-input" type="number" step="0.01" data-idx="4" data-field="amount" value="195713548.69"></td><td><input class="cell-input" type="number" step="0.01" data-idx="4" data-field="revenue" value="45466"></td><td class="computed">Rs 44,755</td><td class="computed">2.86</td><td class="computed">Rs 128,001</td></tr><tr><td><input class="cell-input month-input" data-idx="5" data-field="month" value="Jun"></td><td><input class="cell-input" type="number" data-idx="5" data-field="users" value="1581"></td><td><input class="cell-input" type="number" data-idx="5" data-field="trxs" value="4515"></td><td><input class="cell-input" type="number" step="0.01" data-idx="5" data-field="amount" value="218454256.38"></td><td><input class="cell-input" type="number" step="0.01" data-idx="5" data-field="revenue" value="49345.75"></td><td class="computed">Rs 48,384</td><td class="computed">2.86</td><td class="computed">Rs 138,175</td></tr><tr><td><input class="cell-input month-input" data-idx="6" data-field="month" value="Jul"></td><td><input class="cell-input" type="number" data-idx="6" data-field="users" value="1635"></td><td><input class="cell-input" type="number" data-idx="6" data-field="trxs" value="5034"></td><td><input class="cell-input" type="number" step="0.01" data-idx="6" data-field="amount" value="128099468.04"></td><td><input class="cell-input" type="number" step="0.01" data-idx="6" data-field="revenue" value="54941"></td><td class="computed">Rs 25,447</td><td class="computed">3.08</td><td class="computed">Rs 78,348</td></tr></tbody>
+              <tfoot id="branchlessFoot">
+    <tr><td>Total / Avg</td><td>11,103</td><td>31,942</td><td>Rs 1,046,053,624</td>
+    <td>324,526</td><td>Rs 32,749</td><td>2.88</td><td>Rs 94,214</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="sub-section-title"><span class="dot" style="background:var(--amber);"></span>Branch (Web/USSD) — Monthly</div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr id="branchHeadRow"><th>Month</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Revenue</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th></tr></thead>
+              <tbody id="branchBody"><tr><td><input class="cell-input month-input" data-idx="0" data-field="month" value="Jan"></td><td><input class="cell-input" type="number" data-idx="0" data-field="users" value="123"></td><td><input class="cell-input" type="number" data-idx="0" data-field="trxs" value="3738"></td><td><input class="cell-input" type="number" step="0.01" data-idx="0" data-field="amount" value="195377267"></td><td><input class="cell-input" type="number" step="0.01" data-idx="0" data-field="revenue" value="32543.25"></td><td class="computed">Rs 52,268</td><td class="computed">30.39</td><td class="computed">Rs 1,588,433</td></tr><tr><td><input class="cell-input month-input" data-idx="1" data-field="month" value="Feb"></td><td><input class="cell-input" type="number" data-idx="1" data-field="users" value="122"></td><td><input class="cell-input" type="number" data-idx="1" data-field="trxs" value="3843"></td><td><input class="cell-input" type="number" step="0.01" data-idx="1" data-field="amount" value="140427684"></td><td><input class="cell-input" type="number" step="0.01" data-idx="1" data-field="revenue" value="33336.5"></td><td class="computed">Rs 36,541</td><td class="computed">31.50</td><td class="computed">Rs 1,151,047</td></tr><tr><td><input class="cell-input month-input" data-idx="2" data-field="month" value="Mar"></td><td><input class="cell-input" type="number" data-idx="2" data-field="users" value="116"></td><td><input class="cell-input" type="number" data-idx="2" data-field="trxs" value="3520"></td><td><input class="cell-input" type="number" step="0.01" data-idx="2" data-field="amount" value="230211846"></td><td><input class="cell-input" type="number" step="0.01" data-idx="2" data-field="revenue" value="30495"></td><td class="computed">Rs 65,401</td><td class="computed">30.34</td><td class="computed">Rs 1,984,585</td></tr><tr><td><input class="cell-input month-input" data-idx="3" data-field="month" value="Apr"></td><td><input class="cell-input" type="number" data-idx="3" data-field="users" value="127"></td><td><input class="cell-input" type="number" data-idx="3" data-field="trxs" value="3671"></td><td><input class="cell-input" type="number" step="0.01" data-idx="3" data-field="amount" value="405129112"></td><td><input class="cell-input" type="number" step="0.01" data-idx="3" data-field="revenue" value="32980.75"></td><td class="computed">Rs 110,359</td><td class="computed">28.91</td><td class="computed">Rs 3,189,993</td></tr><tr><td><input class="cell-input month-input" data-idx="4" data-field="month" value="May"></td><td><input class="cell-input" type="number" data-idx="4" data-field="users" value="121"></td><td><input class="cell-input" type="number" data-idx="4" data-field="trxs" value="3458"></td><td><input class="cell-input" type="number" step="0.01" data-idx="4" data-field="amount" value="223411380"></td><td><input class="cell-input" type="number" step="0.01" data-idx="4" data-field="revenue" value="31836.5"></td><td class="computed">Rs 64,607</td><td class="computed">28.58</td><td class="computed">Rs 1,846,375</td></tr><tr><td><input class="cell-input month-input" data-idx="5" data-field="month" value="Jun"></td><td><input class="cell-input" type="number" data-idx="5" data-field="users" value="124"></td><td><input class="cell-input" type="number" data-idx="5" data-field="trxs" value="3697"></td><td><input class="cell-input" type="number" step="0.01" data-idx="5" data-field="amount" value="677249219"></td><td><input class="cell-input" type="number" step="0.01" data-idx="5" data-field="revenue" value="41368"></td><td class="computed">Rs 183,189</td><td class="computed">29.81</td><td class="computed">Rs 5,461,687</td></tr><tr><td><input class="cell-input month-input" data-idx="6" data-field="month" value="Jul"></td><td><input class="cell-input" type="number" data-idx="6" data-field="users" value="112"></td><td><input class="cell-input" type="number" data-idx="6" data-field="trxs" value="3525"></td><td><input class="cell-input" type="number" step="0.01" data-idx="6" data-field="amount" value="237178895"></td><td><input class="cell-input" type="number" step="0.01" data-idx="6" data-field="revenue" value="39035"></td><td class="computed">Rs 67,285</td><td class="computed">31.47</td><td class="computed">Rs 2,117,669</td></tr></tbody>
+              <tfoot id="branchFoot">
+    <tr><td>Total / Avg</td><td>845</td><td>25,452</td><td>Rs 2,108,985,403</td>
+    <td>241,595</td><td>Rs 82,861</td><td>30.12</td><td>Rs 2,495,841</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="sub-section-title"><span class="dot" style="background:var(--purple);"></span>Core (Core Banking) — Monthly</div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr id="coreHeadRow"><th>Month</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Revenue</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th></tr></thead>
+              <tbody id="coreBody"><tr><td><input class="cell-input month-input" data-idx="0" data-field="month" value="Jan"></td><td><input class="cell-input" type="number" data-idx="0" data-field="users" value="369"></td><td><input class="cell-input" type="number" data-idx="0" data-field="trxs" value="983"></td><td><input class="cell-input" type="number" step="0.01" data-idx="0" data-field="amount" value="14312020.85"></td><td><input class="cell-input" type="number" step="0.01" data-idx="0" data-field="revenue" value="9477.25"></td><td class="computed">Rs 14,560</td><td class="computed">2.66</td><td class="computed">Rs 38,786</td></tr><tr><td><input class="cell-input month-input" data-idx="1" data-field="month" value="Feb"></td><td><input class="cell-input" type="number" data-idx="1" data-field="users" value="367"></td><td><input class="cell-input" type="number" data-idx="1" data-field="trxs" value="827"></td><td><input class="cell-input" type="number" step="0.01" data-idx="1" data-field="amount" value="10493538.69"></td><td><input class="cell-input" type="number" step="0.01" data-idx="1" data-field="revenue" value="8263"></td><td class="computed">Rs 12,689</td><td class="computed">2.25</td><td class="computed">Rs 28,593</td></tr><tr><td><input class="cell-input month-input" data-idx="2" data-field="month" value="Mar"></td><td><input class="cell-input" type="number" data-idx="2" data-field="users" value="335"></td><td><input class="cell-input" type="number" data-idx="2" data-field="trxs" value="807"></td><td><input class="cell-input" type="number" step="0.01" data-idx="2" data-field="amount" value="10756996.11"></td><td><input class="cell-input" type="number" step="0.01" data-idx="2" data-field="revenue" value="7884.25"></td><td class="computed">Rs 13,330</td><td class="computed">2.41</td><td class="computed">Rs 32,110</td></tr><tr><td><input class="cell-input month-input" data-idx="3" data-field="month" value="Apr"></td><td><input class="cell-input" type="number" data-idx="3" data-field="users" value="358"></td><td><input class="cell-input" type="number" data-idx="3" data-field="trxs" value="888"></td><td><input class="cell-input" type="number" step="0.01" data-idx="3" data-field="amount" value="14004758.91"></td><td><input class="cell-input" type="number" step="0.01" data-idx="3" data-field="revenue" value="8978.5"></td><td class="computed">Rs 15,771</td><td class="computed">2.48</td><td class="computed">Rs 39,119</td></tr><tr><td><input class="cell-input month-input" data-idx="4" data-field="month" value="May"></td><td><input class="cell-input" type="number" data-idx="4" data-field="users" value="457"></td><td><input class="cell-input" type="number" data-idx="4" data-field="trxs" value="1053"></td><td><input class="cell-input" type="number" step="0.01" data-idx="4" data-field="amount" value="13169280.59"></td><td><input class="cell-input" type="number" step="0.01" data-idx="4" data-field="revenue" value="9457.5"></td><td class="computed">Rs 12,506</td><td class="computed">2.30</td><td class="computed">Rs 28,817</td></tr><tr><td><input class="cell-input month-input" data-idx="5" data-field="month" value="Jun"></td><td><input class="cell-input" type="number" data-idx="5" data-field="users" value="492"></td><td><input class="cell-input" type="number" data-idx="5" data-field="trxs" value="1262"></td><td><input class="cell-input" type="number" step="0.01" data-idx="5" data-field="amount" value="15743817.44"></td><td><input class="cell-input" type="number" step="0.01" data-idx="5" data-field="revenue" value="11793.75"></td><td class="computed">Rs 12,475</td><td class="computed">2.57</td><td class="computed">Rs 32,000</td></tr><tr><td><input class="cell-input month-input" data-idx="6" data-field="month" value="Jul"></td><td><input class="cell-input" type="number" data-idx="6" data-field="users" value="518"></td><td><input class="cell-input" type="number" data-idx="6" data-field="trxs" value="1281"></td><td><input class="cell-input" type="number" step="0.01" data-idx="6" data-field="amount" value="15442212.64"></td><td><input class="cell-input" type="number" step="0.01" data-idx="6" data-field="revenue" value="12455"></td><td class="computed">Rs 12,055</td><td class="computed">2.47</td><td class="computed">Rs 29,811</td></tr></tbody>
+              <tfoot id="coreFoot">
+    <tr><td>Total / Avg</td><td>2,896</td><td>7,101</td><td>Rs 93,922,625</td>
+    <td>68,309</td><td>Rs 13,227</td><td>2.45</td><td>Rs 32,432</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="billersSection">
+    <div class="section-header" onclick="toggleSection('billersSection')">
+      <span class="chevron">▼</span>
+      <span class="icon-badge">🏦</span>
+      <span class="title">Top 8 Billers</span>
+      <span class="subtitle">By total amount — most recent month only</span>
+    </div>
+    <div class="section-body">
+      <div class="month-banner">
+        <span>📅&nbsp; These rankings are only for</span>
+        <input type="text" class="cell-input month-banner-input" id="top8MonthInputBillers" data-sync="top8Month">
+      </div>
+      <div class="sub-section-title"><span class="dot" style="background:var(--blue);"></span>Branchless (Mobile App) — Top 8 Billers</div>
+      <div class="two-col" style="margin-bottom:24px;">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Prefix</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
+            <tbody id="billersBranchlessBody"><tr>
+      <td><span class="rank-badge">1</span></td>
+      <td style="font-weight:600;">PRAL0001</td>
+      <td>17</td>
+      <td>70</td>
+      <td>Rs 37,607,597</td>
+      <td>Rs 537,251</td>
+      <td>4.12</td>
+      <td>Rs 2,212,212</td>
+      <td>3,368</td>
+    </tr><tr>
+      <td><span class="rank-badge">2</span></td>
+      <td style="font-weight:600;">LESCO001</td>
+      <td>420</td>
+      <td>955</td>
+      <td>Rs 19,358,586</td>
+      <td>Rs 20,271</td>
+      <td>2.27</td>
+      <td>Rs 46,092</td>
+      <td>9,515</td>
+    </tr><tr>
+      <td><span class="rank-badge">3</span></td>
+      <td style="font-weight:600;">IN01BILL</td>
+      <td>148</td>
+      <td>553</td>
+      <td>Rs 17,473,311</td>
+      <td>Rs 31,597</td>
+      <td>3.74</td>
+      <td>Rs 118,063</td>
+      <td>6,456</td>
+    </tr><tr>
+      <td><span class="rank-badge">4</span></td>
+      <td style="font-weight:600;">GOP00001</td>
+      <td>29</td>
+      <td>278</td>
+      <td>Rs 14,961,753</td>
+      <td>Rs 53,819</td>
+      <td>9.59</td>
+      <td>Rs 515,923</td>
+      <td>5,223</td>
+    </tr><tr>
+      <td><span class="rank-badge">5</span></td>
+      <td style="font-weight:600;">KESC0001</td>
+      <td>119</td>
+      <td>231</td>
+      <td>Rs 9,839,285</td>
+      <td>Rs 42,594</td>
+      <td>1.94</td>
+      <td>Rs 82,683</td>
+      <td>3,051</td>
+    </tr><tr>
+      <td><span class="rank-badge">6</span></td>
+      <td style="font-weight:600;">CC01BILL</td>
+      <td>153</td>
+      <td>313</td>
+      <td>Rs 9,228,455</td>
+      <td>Rs 29,484</td>
+      <td>2.05</td>
+      <td>Rs 60,317</td>
+      <td>4,462</td>
+    </tr><tr>
+      <td><span class="rank-badge">7</span></td>
+      <td style="font-weight:600;">IESCO001</td>
+      <td>119</td>
+      <td>181</td>
+      <td>Rs 5,685,741</td>
+      <td>Rs 31,413</td>
+      <td>1.52</td>
+      <td>Rs 47,779</td>
+      <td>2,557</td>
+    </tr><tr>
+      <td><span class="rank-badge">8</span></td>
+      <td style="font-weight:600;">MEPCO001</td>
+      <td>356</td>
+      <td>897</td>
+      <td>Rs 5,221,501</td>
+      <td>Rs 5,821</td>
+      <td>2.52</td>
+      <td>Rs 14,667</td>
+      <td>7,707</td>
+    </tr></tbody>
+          </table>
+        </div>
+        <div class="bar-list" id="billersBranchlessBarList"><div class="bar-row">
+      <div class="bar-label" title="PRAL0001">PRAL0001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 37,607,597</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="LESCO001">LESCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:51.47520060906843%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 19,358,586</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="IN01BILL">IN01BILL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:46.46218422304408%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 17,473,311</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="GOP00001">GOP00001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:39.78385803272674%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 14,961,753</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="KESC0001">KESC0001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:26.163024986680217%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 9,839,285</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="CC01BILL">CC01BILL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:24.53880539083632%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 9,228,455</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="IESCO001">IESCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:15.11859691540515%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 5,685,741</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="MEPCO001">MEPCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:13.884165478586679%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 5,221,501</div>
+    </div></div>
+      </div>
+
+      <div class="sub-section-title"><span class="dot" style="background:var(--amber);"></span>Branch (Web/USSD) — Top 8 Billers</div>
+      <div class="two-col" style="margin-bottom:24px;">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Prefix</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
+            <tbody id="billersBranchBody"><tr>
+      <td><span class="rank-badge">1</span></td>
+      <td style="font-weight:600;">PRAL0001</td>
+      <td>12</td>
+      <td>72</td>
+      <td>Rs 163,674,451</td>
+      <td>Rs 2,273,256</td>
+      <td>6.00</td>
+      <td>Rs 13,639,538</td>
+      <td>3,613</td>
+    </tr><tr>
+      <td><span class="rank-badge">2</span></td>
+      <td style="font-weight:600;">GOP00001</td>
+      <td>2</td>
+      <td>7</td>
+      <td>Rs 26,985,348</td>
+      <td>Rs 3,855,050</td>
+      <td>3.50</td>
+      <td>Rs 13,492,674</td>
+      <td>1,102</td>
+    </tr><tr>
+      <td><span class="rank-badge">3</span></td>
+      <td style="font-weight:600;">LESCO001</td>
+      <td>24</td>
+      <td>948</td>
+      <td>Rs 13,773,685</td>
+      <td>Rs 14,529</td>
+      <td>39.50</td>
+      <td>Rs 573,904</td>
+      <td>10,619</td>
+    </tr><tr>
+      <td><span class="rank-badge">4</span></td>
+      <td style="font-weight:600;">MEPCO001</td>
+      <td>44</td>
+      <td>908</td>
+      <td>Rs 13,045,660</td>
+      <td>Rs 14,367</td>
+      <td>20.64</td>
+      <td>Rs 296,492</td>
+      <td>9,218</td>
+    </tr><tr>
+      <td><span class="rank-badge">5</span></td>
+      <td style="font-weight:600;">GEPCO001</td>
+      <td>17</td>
+      <td>672</td>
+      <td>Rs 9,910,075</td>
+      <td>Rs 14,747</td>
+      <td>39.53</td>
+      <td>Rs 582,946</td>
+      <td>7,409</td>
+    </tr><tr>
+      <td><span class="rank-badge">6</span></td>
+      <td style="font-weight:600;">IN01BILL</td>
+      <td>25</td>
+      <td>45</td>
+      <td>Rs 5,860,863</td>
+      <td>Rs 130,241</td>
+      <td>1.80</td>
+      <td>Rs 234,435</td>
+      <td>897</td>
+    </tr><tr>
+      <td><span class="rank-badge">7</span></td>
+      <td style="font-weight:600;">SNGPL001</td>
+      <td>56</td>
+      <td>604</td>
+      <td>Rs 1,707,380</td>
+      <td>Rs 2,827</td>
+      <td>10.79</td>
+      <td>Rs 30,489</td>
+      <td>4,153</td>
+    </tr><tr>
+      <td><span class="rank-badge">8</span></td>
+      <td style="font-weight:600;">KESC0001</td>
+      <td>4</td>
+      <td>21</td>
+      <td>Rs 1,005,436</td>
+      <td>Rs 47,878</td>
+      <td>5.25</td>
+      <td>Rs 251,359</td>
+      <td>339</td>
+    </tr></tbody>
+          </table>
+        </div>
+        <div class="bar-list" id="billersBranchBarList"><div class="bar-row">
+      <div class="bar-label" title="PRAL0001">PRAL0001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 163,674,451</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="GOP00001">GOP00001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:16.48720850146612%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 26,985,348</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="LESCO001">LESCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:8.415293233517552%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 13,773,685</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="MEPCO001">MEPCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:7.970492596917279%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 13,045,660</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="GEPCO001">GEPCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:6.054747664924197%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 9,910,075</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="IN01BILL">IN01BILL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:3.580805045742906%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 5,860,863</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="SNGPL001">SNGPL001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.0431560879345794%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 1,707,380</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="KESC0001">KESC0001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.614290131329049%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 1,005,436</div>
+    </div></div>
+      </div>
+
+      <div class="sub-section-title"><span class="dot" style="background:var(--purple);"></span>Core (Core Banking) — Top 8 Billers</div>
+      <div class="two-col">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Prefix</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
+            <tbody id="billersCoreBody"><tr>
+      <td><span class="rank-badge">1</span></td>
+      <td style="font-weight:600;">CC01BILL</td>
+      <td>76</td>
+      <td>143</td>
+      <td>Rs 8,316,573</td>
+      <td>Rs 58,158</td>
+      <td>1.88</td>
+      <td>Rs 109,429</td>
+      <td>2,659</td>
+    </tr><tr>
+      <td><span class="rank-badge">2</span></td>
+      <td style="font-weight:600;">LESCO001</td>
+      <td>79</td>
+      <td>202</td>
+      <td>Rs 2,802,248</td>
+      <td>Rs 13,873</td>
+      <td>2.56</td>
+      <td>Rs 35,471</td>
+      <td>2,413</td>
+    </tr><tr>
+      <td><span class="rank-badge">3</span></td>
+      <td style="font-weight:600;">MEPCO001</td>
+      <td>77</td>
+      <td>168</td>
+      <td>Rs 1,305,933</td>
+      <td>Rs 7,773</td>
+      <td>2.18</td>
+      <td>Rs 16,960</td>
+      <td>1,569</td>
+    </tr><tr>
+      <td><span class="rank-badge">4</span></td>
+      <td style="font-weight:600;">IN01BILL</td>
+      <td>50</td>
+      <td>89</td>
+      <td>Rs 1,121,719</td>
+      <td>Rs 12,604</td>
+      <td>1.78</td>
+      <td>Rs 22,434</td>
+      <td>927</td>
+    </tr><tr>
+      <td><span class="rank-badge">5</span></td>
+      <td style="font-weight:600;">GEPCO001</td>
+      <td>35</td>
+      <td>71</td>
+      <td>Rs 783,303</td>
+      <td>Rs 11,032</td>
+      <td>2.03</td>
+      <td>Rs 22,380</td>
+      <td>811</td>
+    </tr><tr>
+      <td><span class="rank-badge">6</span></td>
+      <td style="font-weight:600;">KESC0001</td>
+      <td>12</td>
+      <td>14</td>
+      <td>Rs 272,446</td>
+      <td>Rs 19,460</td>
+      <td>1.17</td>
+      <td>Rs 22,704</td>
+      <td>235</td>
+    </tr><tr>
+      <td><span class="rank-badge">7</span></td>
+      <td style="font-weight:600;">SNGPL001</td>
+      <td>71</td>
+      <td>77</td>
+      <td>Rs 245,970</td>
+      <td>Rs 3,194</td>
+      <td>1.08</td>
+      <td>Rs 3,464</td>
+      <td>554</td>
+    </tr><tr>
+      <td><span class="rank-badge">8</span></td>
+      <td style="font-weight:600;">MBLINK01</td>
+      <td>145</td>
+      <td>252</td>
+      <td>Rs 165,347</td>
+      <td>Rs 656</td>
+      <td>1.74</td>
+      <td>Rs 1,140</td>
+      <td>1,575</td>
+    </tr></tbody>
+          </table>
+        </div>
+        <div class="bar-list" id="billersCoreBarList"><div class="bar-row">
+      <div class="bar-label" title="CC01BILL">CC01BILL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 8,316,573</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="LESCO001">LESCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:33.69474292087405%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 2,802,248</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="MEPCO001">MEPCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:15.702777451134164%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 1,305,933</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="IN01BILL">IN01BILL</div>
+      <div class="bar-track"><div class="bar-fill" style="width:13.487754593619094%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 1,121,719</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="GEPCO001">GEPCO001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:9.418578660471667%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 783,303</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="KESC0001">KESC0001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:3.2759405769298264%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 272,446</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="SNGPL001">SNGPL001</div>
+      <div class="bar-track"><div class="bar-fill" style="width:2.95758830633384%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 245,970</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="MBLINK01">MBLINK01</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.9881625957937206%;background:#7C4FC7"></div></div>
+      <div class="bar-total">Rs 165,347</div>
+    </div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="usersSection">
+    <div class="section-header" onclick="toggleSection('usersSection')">
+      <span class="chevron">▼</span>
+      <span class="icon-badge">👤</span>
+      <span class="title">Top 8 Users</span>
+      <span class="subtitle">By total amount — most recent month only</span>
+    </div>
+    <div class="section-body">
+      <div class="month-banner">
+        <span>📅&nbsp; These rankings are only for</span>
+        <input type="text" class="cell-input month-banner-input" id="top8MonthInputUsers" data-sync="top8Month">
+      </div>
+      <div class="sub-section-title"><span class="dot" style="background:var(--blue);"></span>Branchless (Mobile App) — Top 8 Users</div>
+      <div class="two-col" style="margin-bottom:24px;">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>User</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
+            <tbody id="usersBranchlessBody"><tr>
+      <td><span class="rank-badge">1</span></td>
+      <td style="font-weight:600;">FINJA LENDING SERVICES LTD</td>
+      <td>1</td>
+      <td>224</td>
+      <td>Rs 37,689,189</td>
+      <td>Rs 168,255</td>
+      <td>224.00</td>
+      <td>Rs 37,689,189</td>
+      <td>5,578</td>
+    </tr><tr>
+      <td><span class="rank-badge">2</span></td>
+      <td style="font-weight:600;">RURAL COMMUNITY DEVELOPMENT PROGRAMMERS</td>
+      <td>1</td>
+      <td>44</td>
+      <td>Rs 19,886,800</td>
+      <td>Rs 451,973</td>
+      <td>44.00</td>
+      <td>Rs 19,886,800</td>
+      <td>1,649</td>
+    </tr><tr>
+      <td><span class="rank-badge">3</span></td>
+      <td style="font-weight:600;">FFO SUPPORT PROGRAM</td>
+      <td>1</td>
+      <td>11</td>
+      <td>Rs 6,837,194</td>
+      <td>Rs 621,563</td>
+      <td>11.00</td>
+      <td>Rs 6,837,194</td>
+      <td>468</td>
+    </tr><tr>
+      <td><span class="rank-badge">4</span></td>
+      <td style="font-weight:600;">PARWEST PACIFIC SECURITY PVT LTD</td>
+      <td>1</td>
+      <td>50</td>
+      <td>Rs 5,679,352</td>
+      <td>Rs 113,587</td>
+      <td>50.00</td>
+      <td>Rs 5,679,352</td>
+      <td>1,088</td>
+    </tr><tr>
+      <td><span class="rank-badge">5</span></td>
+      <td style="font-weight:600;">SHEZADA SECURITY SERVICES PVT LTD</td>
+      <td>1</td>
+      <td>56</td>
+      <td>Rs 5,325,144</td>
+      <td>Rs 95,092</td>
+      <td>56.00</td>
+      <td>Rs 5,325,144</td>
+      <td>1,043</td>
+    </tr><tr>
+      <td><span class="rank-badge">6</span></td>
+      <td style="font-weight:600;">RINAS KITCHENETTE PVT LTD</td>
+      <td>1</td>
+      <td>17</td>
+      <td>Rs 5,321,593</td>
+      <td>Rs 313,035</td>
+      <td>17.00</td>
+      <td>Rs 5,321,593</td>
+      <td>623</td>
+    </tr><tr>
+      <td><span class="rank-badge">7</span></td>
+      <td style="font-weight:600;">BSL PVT LTD</td>
+      <td>1</td>
+      <td>207</td>
+      <td>Rs 2,678,865</td>
+      <td>Rs 12,941</td>
+      <td>207.00</td>
+      <td>Rs 2,678,865</td>
+      <td>3,428</td>
+    </tr><tr>
+      <td><span class="rank-badge">8</span></td>
+      <td style="font-weight:600;">HASSAN FAROOQI AND COMPANY</td>
+      <td>1</td>
+      <td>3</td>
+      <td>Rs 2,076,518</td>
+      <td>Rs 692,173</td>
+      <td>3.00</td>
+      <td>Rs 2,076,518</td>
+      <td>176</td>
+    </tr></tbody>
+          </table>
+        </div>
+        <div class="bar-list" id="usersBranchlessBarList"><div class="bar-row">
+      <div class="bar-label" title="FINJA LENDING SERVICES LTD">FINJA LENDING SERVICES LTD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 37,689,189</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="RURAL COMMUNITY DEVELOPMENT PROGRAMMERS">RURAL COMMUNITY DEVELOPMENT PROGRAMMERS</div>
+      <div class="bar-track"><div class="bar-fill" style="width:52.76526380018418%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 19,886,800</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="FFO SUPPORT PROGRAM">FFO SUPPORT PROGRAM</div>
+      <div class="bar-track"><div class="bar-fill" style="width:18.140995286473263%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 6,837,194</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="PARWEST PACIFIC SECURITY PVT LTD">PARWEST PACIFIC SECURITY PVT LTD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:15.068915385788747%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 5,679,352</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="SHEZADA SECURITY SERVICES PVT LTD">SHEZADA SECURITY SERVICES PVT LTD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:14.129102114667418%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 5,325,144</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="RINAS KITCHENETTE PVT LTD">RINAS KITCHENETTE PVT LTD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:14.119680314691834%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 5,321,593</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="BSL PVT LTD">BSL PVT LTD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:7.107780960741819%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 2,678,865</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="HASSAN FAROOQI AND COMPANY">HASSAN FAROOQI AND COMPANY</div>
+      <div class="bar-track"><div class="bar-fill" style="width:5.5095852553367495%;background:#2E5FD9"></div></div>
+      <div class="bar-total">Rs 2,076,518</div>
+    </div></div>
+      </div>
+
+      <div class="sub-section-title"><span class="dot" style="background:var(--amber);"></span>Branch (Web/USSD) — Top 8 Users</div>
+      <div class="two-col">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>User</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
+            <tbody id="usersBranchBody"><tr>
+      <td><span class="rank-badge">1</span></td>
+      <td style="font-weight:600;">SYSTEM SETTLEMENT ACCOUNT</td>
+      <td>1</td>
+      <td>27</td>
+      <td>Rs 189,912,667</td>
+      <td>Rs 7,033,802</td>
+      <td>27.00</td>
+      <td>Rs 189,912,667</td>
+      <td>3,934</td>
+    </tr><tr>
+      <td><span class="rank-badge">2</span></td>
+      <td style="font-weight:600;">RUBAB SHABIR</td>
+      <td>1</td>
+      <td>260</td>
+      <td>Rs 3,757,212</td>
+      <td>Rs 14,451</td>
+      <td>260.00</td>
+      <td>Rs 3,757,212</td>
+      <td>3,093</td>
+    </tr><tr>
+      <td><span class="rank-badge">3</span></td>
+      <td style="font-weight:600;">TALON SPORTS PVT LIMITED</td>
+      <td>1</td>
+      <td>4</td>
+      <td>Rs 2,629,396</td>
+      <td>Rs 657,349</td>
+      <td>4.00</td>
+      <td>Rs 2,629,396</td>
+      <td>250</td>
+    </tr><tr>
+      <td><span class="rank-badge">4</span></td>
+      <td style="font-weight:600;">HAFIZ MUHAMMAD LUQMAN</td>
+      <td>1</td>
+      <td>73</td>
+      <td>Rs 2,519,573</td>
+      <td>Rs 34,515</td>
+      <td>73.00</td>
+      <td>Rs 2,519,573</td>
+      <td>901</td>
+    </tr><tr>
+      <td><span class="rank-badge">5</span></td>
+      <td style="font-weight:600;">AMS CENTRAL SERVICES SMC PRIVATE LTD</td>
+      <td>1</td>
+      <td>14</td>
+      <td>Rs 1,831,942</td>
+      <td>Rs 130,853</td>
+      <td>14.00</td>
+      <td>Rs 1,831,942</td>
+      <td>296</td>
+    </tr><tr>
+      <td><span class="rank-badge">6</span></td>
+      <td style="font-weight:600;">NIGHAT BANO</td>
+      <td>1</td>
+      <td>212</td>
+      <td>Rs 1,803,074</td>
+      <td>Rs 8,505</td>
+      <td>212.00</td>
+      <td>Rs 1,803,074</td>
+      <td>2,191</td>
+    </tr><tr>
+      <td><span class="rank-badge">7</span></td>
+      <td style="font-weight:600;">AFAQ AHMAD</td>
+      <td>1</td>
+      <td>79</td>
+      <td>Rs 1,498,230</td>
+      <td>Rs 18,965</td>
+      <td>79.00</td>
+      <td>Rs 1,498,230</td>
+      <td>1,046</td>
+    </tr><tr>
+      <td><span class="rank-badge">8</span></td>
+      <td style="font-weight:600;">HUSSNAIN NAWAZ</td>
+      <td>1</td>
+      <td>147</td>
+      <td>Rs 1,445,172</td>
+      <td>Rs 9,831</td>
+      <td>147.00</td>
+      <td>Rs 1,445,172</td>
+      <td>1,304</td>
+    </tr></tbody>
+          </table>
+        </div>
+        <div class="bar-list" id="usersBranchBarList"><div class="bar-row">
+      <div class="bar-label" title="SYSTEM SETTLEMENT ACCOUNT">SYSTEM SETTLEMENT ACCOUNT</div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 189,912,667</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="RUBAB SHABIR">RUBAB SHABIR</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.9783893614637091%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 3,757,212</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="TALON SPORTS PVT LIMITED">TALON SPORTS PVT LIMITED</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.3845290267025738%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 2,629,396</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="HAFIZ MUHAMMAD LUQMAN">HAFIZ MUHAMMAD LUQMAN</div>
+      <div class="bar-track"><div class="bar-fill" style="width:1.3267008671938665%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 2,519,573</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="AMS CENTRAL SERVICES SMC PRIVATE LTD">AMS CENTRAL SERVICES SMC PRIVATE LTD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.9646233866011686%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 1,831,942</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="NIGHAT BANO">NIGHAT BANO</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.949422715442146%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 1,803,074</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="AFAQ AHMAD">AFAQ AHMAD</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.7889047232431315%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 1,498,230</div>
+    </div><div class="bar-row">
+      <div class="bar-label" title="HUSSNAIN NAWAZ">HUSSNAIN NAWAZ</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0.760966618408871%;background:#B4791E"></div></div>
+      <div class="bar-total">Rs 1,445,172</div>
+    </div></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Interactive report · edits are saved locally in this browser · unlock editing to make changes, then Publish to share them
+  · <span id="lockViewLink" style="cursor:pointer;text-decoration:underline;">Lock report view</span>
+</footer>
+
+</div>
+
+<script>
+const ORIGINAL_STATE = /*STATE_START*/{"branch":[{"month":"Jan","users":123,"trxs":3738,"amount":195377267,"revenue":32543.25,"ticketSize":52267.86,"trxPerUser":30.3902,"userSpend":1588433.07},{"month":"Feb","users":122,"trxs":3843,"amount":140427684,"revenue":33336.5,"ticketSize":36541.16,"trxPerUser":31.5,"userSpend":1151046.59},{"month":"Mar","users":116,"trxs":3520,"amount":230211846,"revenue":30495,"ticketSize":65401.09,"trxPerUser":30.3448,"userSpend":1984584.88},{"month":"Apr","users":127,"trxs":3671,"amount":405129112,"revenue":32980.75,"ticketSize":110359.33,"trxPerUser":28.9055,"userSpend":3189993.01},{"month":"May","users":121,"trxs":3458,"amount":223411380,"revenue":31836.5,"ticketSize":64607.11,"trxPerUser":28.5785,"userSpend":1846375.04},{"month":"Jun","users":124,"trxs":3697,"amount":677249219,"revenue":41368,"ticketSize":183188.86,"trxPerUser":29.8145,"userSpend":5461687.25},{"month":"Jul","users":112,"trxs":3525,"amount":237178895,"revenue":39035}],"branchless":[{"month":"Jan","users":1674,"trxs":4693,"amount":142701743.98,"revenue":46152.25,"ticketSize":30407.36,"trxPerUser":2.8035,"userSpend":85245.96},{"month":"Feb","users":1568,"trxs":4325,"amount":93179127.45,"revenue":40432,"ticketSize":21544.31,"trxPerUser":2.7583,"userSpend":59425.46},{"month":"Mar","users":1572,"trxs":4474,"amount":128926958.51,"revenue":44200,"ticketSize":28816.93,"trxPerUser":2.8461,"userSpend":82014.6},{"month":"Apr","users":1544,"trxs":4528,"amount":138978520.48,"revenue":43989.25,"ticketSize":30693.14,"trxPerUser":2.9326,"userSpend":90012},{"month":"May","users":1529,"trxs":4373,"amount":195713548.69,"revenue":45466,"ticketSize":44754.98,"trxPerUser":2.86,"userSpend":128001.01},{"month":"Jun","users":1581,"trxs":4515,"amount":218454256.38,"revenue":49345.75,"ticketSize":48384.11,"trxPerUser":2.8558,"userSpend":138174.74},{"month":"Jul","users":1635,"trxs":5034,"amount":128099468.04,"revenue":54941}],"overallTotal":{"users":3871,"trxs":48835,"amount":2789760663.49,"revenue":472145.25,"ticketSize":57126.26,"trxPerUser":12.6156,"userSpend":720682.17},"branchTotal":{"users":194,"trxs":21927,"amount":1871806508,"revenue":202560,"ticketSize":85365.37,"trxPerUser":113.0258,"userSpend":9648487.15},"branchlessTotal":{"users":3679,"trxs":26908,"amount":917954155.49,"revenue":269585.25,"ticketSize":34114.54,"trxPerUser":7.3139,"userSpend":249511.87},"top10BillersBranch":[{"prefix":"PRAL0001","users":12,"trxs":72,"amount":163674451,"revenue":3612.5},{"prefix":"GOP00001","users":2,"trxs":7,"amount":26985348,"revenue":1101.5},{"prefix":"LESCO001","users":24,"trxs":948,"amount":13773685,"revenue":10619.25},{"prefix":"MEPCO001","users":44,"trxs":908,"amount":13045660,"revenue":9218},{"prefix":"GEPCO001","users":17,"trxs":672,"amount":9910075,"revenue":7408.75},{"prefix":"IN01BILL","users":25,"trxs":45,"amount":5860863,"revenue":896.75},{"prefix":"SNGPL001","users":56,"trxs":604,"amount":1707380,"revenue":4153.25},{"prefix":"KESC0001","users":4,"trxs":21,"amount":1005436,"revenue":338.75}],"top10BillersBranchless":[{"prefix":"PRAL0001","users":17,"trxs":70,"amount":37607597,"revenue":3368},{"prefix":"LESCO001","users":420,"trxs":955,"amount":19358586,"revenue":9515.25},{"prefix":"IN01BILL","users":148,"trxs":553,"amount":17473311,"revenue":6455.75},{"prefix":"GOP00001","users":29,"trxs":278,"amount":14961753,"revenue":5222.75},{"prefix":"KESC0001","users":119,"trxs":231,"amount":9839285,"revenue":3051.25},{"prefix":"CC01BILL","users":153,"trxs":313,"amount":9228455.04,"revenue":4462.25},{"prefix":"IESCO001","users":119,"trxs":181,"amount":5685741,"revenue":2556.75},{"prefix":"MEPCO001","users":356,"trxs":897,"amount":5221501,"revenue":7706.5}],"core":[{"month":"Jan","users":369,"trxs":983,"amount":14312020.85,"revenue":9477.25,"ticketSize":14559.53,"trxPerUser":2.664,"userSpend":38785.96},{"month":"Feb","users":367,"trxs":827,"amount":10493538.69,"revenue":8263,"ticketSize":12688.68,"trxPerUser":2.2534,"userSpend":28592.75},{"month":"Mar","users":335,"trxs":807,"amount":10756996.11,"revenue":7884.25,"ticketSize":13329.61,"trxPerUser":2.409,"userSpend":32110.44},{"month":"Apr","users":358,"trxs":888,"amount":14004758.91,"revenue":8978.5,"ticketSize":15771.12,"trxPerUser":2.4804,"userSpend":39119.44},{"month":"May","users":457,"trxs":1053,"amount":13169280.59,"revenue":9457.5,"ticketSize":12506.44,"trxPerUser":2.3042,"userSpend":28816.81},{"month":"Jun","users":492,"trxs":1262,"amount":15743817.44,"revenue":11793.75,"ticketSize":12475.29,"trxPerUser":2.565,"userSpend":31999.63},{"month":"Jul","users":518,"trxs":1281,"amount":15442212.64,"revenue":12455}],"top8BillersCore":[{"prefix":"CC01BILL","users":76,"trxs":143,"amount":8316573.32,"revenue":2659},{"prefix":"LESCO001","users":79,"trxs":202,"amount":2802248,"revenue":2412.5},{"prefix":"MEPCO001","users":77,"trxs":168,"amount":1305933,"revenue":1569},{"prefix":"IN01BILL","users":50,"trxs":89,"amount":1121719,"revenue":926.75},{"prefix":"GEPCO001","users":35,"trxs":71,"amount":783303,"revenue":810.5},{"prefix":"KESC0001","users":12,"trxs":14,"amount":272446,"revenue":234.75},{"prefix":"SNGPL001","users":71,"trxs":77,"amount":245970,"revenue":553.5},{"prefix":"MBLINK01","users":145,"trxs":252,"amount":165347,"revenue":1575}],"top10UsersBranch":[{"name":"SYSTEM SETTLEMENT ACCOUNT","users":1,"trxs":27,"amount":189912667,"revenue":3934.25},{"name":"RUBAB SHABIR","users":1,"trxs":260,"amount":3757212,"revenue":3092.5},{"name":"TALON SPORTS PVT LIMITED","users":1,"trxs":4,"amount":2629396,"revenue":250},{"name":"HAFIZ MUHAMMAD LUQMAN","users":1,"trxs":73,"amount":2519573,"revenue":900.5},{"name":"AMS CENTRAL SERVICES SMC PRIVATE LTD","users":1,"trxs":14,"amount":1831942,"revenue":296},{"name":"NIGHAT BANO","users":1,"trxs":212,"amount":1803074,"revenue":2191.25},{"name":"AFAQ AHMAD","users":1,"trxs":79,"amount":1498230,"revenue":1046.25},{"name":"HUSSNAIN NAWAZ","users":1,"trxs":147,"amount":1445172,"revenue":1303.5}],"top10UsersBranchless":[{"name":"FINJA LENDING SERVICES LTD","users":1,"trxs":224,"amount":37689189,"revenue":5577.5},{"name":"RURAL COMMUNITY DEVELOPMENT PROGRAMMERS","users":1,"trxs":44,"amount":19886800,"revenue":1648.5},{"name":"FFO SUPPORT PROGRAM","users":1,"trxs":11,"amount":6837194,"revenue":467.75},{"name":"PARWEST PACIFIC SECURITY PVT LTD","users":1,"trxs":50,"amount":5679352,"revenue":1088},{"name":"SHEZADA SECURITY SERVICES PVT LTD","users":1,"trxs":56,"amount":5325144,"revenue":1043.25},{"name":"RINAS KITCHENETTE PVT LTD","users":1,"trxs":17,"amount":5321593,"revenue":623},{"name":"BSL PVT LTD","users":1,"trxs":207,"amount":2678865,"revenue":3427.5},{"name":"HASSAN FAROOQI AND COMPANY","users":1,"trxs":3,"amount":2076518,"revenue":175.75}],"overallIntro":"","top8Month":"July 2026","hasUploadedData":true}/*STATE_END*/;
+const STORAGE_KEY = 'channelBillerReport_v1';
+const EDIT_PASSWORD = 'abhi2026';
+const EDIT_UNLOCK_KEY = 'channelReportEditUnlocked';
+const VIEW_PASSWORD = 'abhiview2026';
+const VIEW_UNLOCK_KEY = 'channelReportViewUnlocked';
+
+function esc(s){
+  if(s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtNum(v, decimals){
+  if(v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString(undefined, {minimumFractionDigits:decimals||0, maximumFractionDigits:decimals||0});
+}
+function fmtMoney(v){
+  if(v === null || v === undefined || isNaN(v)) return '—';
+  return 'Rs ' + Number(v).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+function fmtAbbrev(v){
+  if(v === null || v === undefined || isNaN(v)) return '—';
+  const sign = v < 0 ? '-' : '';
+  const abs = Math.abs(v);
+  if(abs >= 1e9) return sign + (abs/1e9).toFixed(2) + 'B';
+  if(abs >= 1e6) return sign + (abs/1e6).toFixed(1) + 'M';
+  if(abs >= 1e3) return sign + (abs/1e3).toFixed(1) + 'K';
+  return sign + Math.round(abs).toString();
+}
+function autoSize(el){ el.style.height='auto'; el.style.height=(el.scrollHeight+2)+'px'; }
+
+// ==================== State ====================
+function loadState(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if(raw && raw.overall) return raw;
+  }catch(e){}
+  return JSON.parse(JSON.stringify(ORIGINAL_STATE));
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    branch: BRANCH, branchless: BRANCHLESS,
+    overallTotal: ORIGINAL_STATE.overallTotal, branchTotal: ORIGINAL_STATE.branchTotal, branchlessTotal: ORIGINAL_STATE.branchlessTotal,
+    top10BillersBranch: TOP10_BILLERS_BRANCH, top10BillersBranchless: TOP10_BILLERS_BRANCHLESS,
+    core: CORE, top8BillersCore: TOP8_BILLERS_CORE,
+    top10UsersBranch: TOP10_USERS_BRANCH, top10UsersBranchless: TOP10_USERS_BRANCHLESS,
+    overallIntro: OVERALL_INTRO, top8Month: TOP8_MONTH, hasUploadedData: HAS_UPLOADED_DATA
+  }));
+}
+
+let state = loadState();
+let BRANCH = state.branch;
+let BRANCHLESS = state.branchless;
+let CORE = state.core || [];
+let TOP10_BILLERS_BRANCH = state.top10BillersBranch;
+let TOP10_BILLERS_BRANCHLESS = state.top10BillersBranchless;
+let TOP8_BILLERS_CORE = state.top8BillersCore || [];
+let TOP10_USERS_BRANCH = state.top10UsersBranch;
+let TOP10_USERS_BRANCHLESS = state.top10UsersBranchless;
+let OVERALL_INTRO = state.overallIntro;
+let TOP8_MONTH = state.top8Month || 'June 2026';
+
+function computeDerived(row){
+  const users = Number(row.users)||0, trxs = Number(row.trxs)||0, amount = Number(row.amount)||0;
+  return {
+    ticketSize: trxs>0 ? amount/trxs : 0,
+    trxPerUser: users>0 ? trxs/users : 0,
+    userSpend: users>0 ? amount/users : 0
+  };
+}
+
+function toggleSection(id){ document.getElementById(id).classList.toggle('collapsed'); }
+
+// ==================== Lock / Edit mode ====================
+function applyLockState(){
+  const unlocked = localStorage.getItem(EDIT_UNLOCK_KEY) === 'true';
+  document.body.classList.toggle('locked', !unlocked);
+  const btn = document.getElementById('unlockBtn');
+  if(unlocked){ btn.innerHTML = '&#128275; Editing Enabled (Click to Lock)'; btn.classList.add('unlocked'); }
+  else{ btn.innerHTML = '&#128274; Unlock Editing'; btn.classList.remove('unlocked'); }
+}
+document.getElementById('unlockBtn').addEventListener('click', () => {
+  const unlocked = localStorage.getItem(EDIT_UNLOCK_KEY) === 'true';
+  if(unlocked){ localStorage.removeItem(EDIT_UNLOCK_KEY); }
+  else{
+    const pw = prompt('Enter the edit password to enable editing on this device:');
+    if(pw === null) return;
+    if(pw !== EDIT_PASSWORD){ alert('Incorrect password.'); return; }
+    localStorage.setItem(EDIT_UNLOCK_KEY, 'true');
+  }
+  applyLockState();
+});
+
+// ==================== View gate ====================
+function applyViewGate(){
+  const unlocked = localStorage.getItem(VIEW_UNLOCK_KEY) === 'true';
+  document.getElementById('appContent').classList.toggle('view-locked', !unlocked);
+  document.getElementById('viewGateOverlay').classList.toggle('show', !unlocked);
+  if(!unlocked) setTimeout(() => document.getElementById('viewPasswordInput').focus(), 50);
+}
+function submitViewPassword(){
+  const input = document.getElementById('viewPasswordInput');
+  if(input.value === VIEW_PASSWORD){
+    localStorage.setItem(VIEW_UNLOCK_KEY, 'true');
+    document.getElementById('viewGateError').textContent = '';
+    input.value = '';
+    applyViewGate();
+  } else {
+    document.getElementById('viewGateError').textContent = 'Incorrect password. Please try again.';
+  }
+}
+document.getElementById('viewSubmitBtn').addEventListener('click', submitViewPassword);
+document.getElementById('viewPasswordInput').addEventListener('keydown', (e) => { if(e.key==='Enter') submitViewPassword(); });
+document.getElementById('lockViewLink').addEventListener('click', () => { localStorage.removeItem(VIEW_UNLOCK_KEY); applyViewGate(); });
+
+
+// ==================== KPI Strips ====================
+function renderKpiDeltaStrip(containerId, tiles){
+  const strip = document.getElementById(containerId);
+  strip.innerHTML = tiles.map(t => {
+    let deltaHtml = '';
+    if(t.prevVal !== null && t.prevVal !== undefined && t.prevVal !== 0){
+      const pct = ((t.val - t.prevVal) / Math.abs(t.prevVal)) * 100;
+      const dir = pct > 0.05 ? 'up' : (pct < -0.05 ? 'down' : 'flat');
+      const arrow = dir==='up' ? '&#9650;' : (dir==='down' ? '&#9660;' : '&#9679;');
+      deltaHtml = `<div class="kpi-delta ${dir}">${arrow} ${Math.abs(pct).toFixed(1)}% MoM</div>`;
+    }
+    return `
+      <div class="kpi-tile">
+        <span class="kpi-icon">${t.icon}</span>
+        <div class="kpi-label">${esc(t.label)}</div>
+        <div class="kpi-value">${t.fmt(t.val)}</div>
+        ${deltaHtml}
+      </div>`;
+  }).join('');
+}
+
+let HAS_UPLOADED_DATA = state.hasUploadedData || false;
+
+function renderOverallKpis(){
+  const overallData = computeOverallData();
+
+  // Only treat a month as "complete" for the headline snapshot if Branch, Branchless, AND Core
+  // all have an entry for it — otherwise a channel that's behind on uploads (e.g. Core has August
+  // but Branch/Branchless don't yet) would silently zero-fill and make that month look like a collapse.
+  const completeMonths = overallData.filter(r => {
+    const mi = monthIndexFromLabel(r.month);
+    return BRANCH.some(x => monthIndexFromLabel(x.month)===mi) &&
+           BRANCHLESS.some(x => monthIndexFromLabel(x.month)===mi) &&
+           CORE.some(x => monthIndexFromLabel(x.month)===mi);
+  });
+
+  const last = completeMonths[completeMonths.length-1] || overallData[overallData.length-1];
+  const prev = completeMonths[completeMonths.length-2];
+
+  document.getElementById('latestMonthLabel').textContent =
+    'Latest Complete Month (' + esc(last.month) + ') vs Prior Month';
+
+  renderKpiDeltaStrip('overallKpiStrip', [
+    {label:'Active Users', icon:'&#128101;', val: Number(last.users)||0, prevVal: prev?Number(prev.users):null, fmt: fmtNum},
+    {label:'Transactions', icon:'&#128257;', val: Number(last.trxs)||0, prevVal: prev?Number(prev.trxs):null, fmt: fmtNum},
+    {label:'Amount Paid', icon:'&#128181;', val: Number(last.amount)||0, prevVal: prev?Number(prev.amount):null, fmt: fmtMoney},
+    {label:'Revenue', icon:'&#128176;', val: Number(last.revenue)||0, prevVal: prev?Number(prev.revenue):null, fmt: fmtNum},
+  ]);
+
+  document.getElementById('cumulativeLabel').textContent =
+    completeMonths.length + ' Complete Month' + (completeMonths.length===1?'':'s') + ' Cumulative (Unique / Total)' +
+    (overallData.length > completeMonths.length ? ' — ' + (overallData.length - completeMonths.length) + ' more month(s) waiting on other channels' : '');
+
+  const strip = document.getElementById('overallTotalStrip');
+  // Only sum complete months, so an in-progress upload for one channel doesn't distort the total.
+  // Branch/Branchless share one identity system (ID_PAYER) so their portion is a true dedup;
+  // Core uses a separate account system with no shared key, so its users are simply added on top —
+  // this total may include some double-counting of anyone active in both systems.
+  const t = {
+    trxs: completeMonths.reduce((s,r)=>s+(Number(r.trxs)||0),0),
+    amount: completeMonths.reduce((s,r)=>s+(Number(r.amount)||0),0),
+    revenue: completeMonths.reduce((s,r)=>s+(Number(r.revenue)||0),0),
+    users: completeMonths.reduce((s,r)=>s+(Number(r.users)||0),0),
+  };
+  const userLabel = 'Total Users';
+  strip.innerHTML = [
+    {label:userLabel, icon:'&#128101;', val: t.users, fmt: fmtNum},
+    {label:'Total Transactions', icon:'&#128257;', val: t.trxs, fmt: fmtNum},
+    {label:'Total Amount', icon:'&#128181;', val: t.amount, fmt: fmtMoney},
+    {label:'Total Revenue', icon:'&#128176;', val: t.revenue, fmt: fmtNum},
+  ].map(x => `
+    <div class="kpi-tile">
+      <span class="kpi-icon">${x.icon}</span>
+      <div class="kpi-label">${esc(x.label)}</div>
+      <div class="kpi-value">${x.fmt(x.val)}</div>
+    </div>`).join('');
+}
+
+// ==================== Generic monthly table (Overall/Branch/Branchless) ====================
+function tableCols(){
+  return [
+    {key:'month', label:'Month', type:'text'},
+    {key:'users', label:'Users', type:'number'},
+    {key:'trxs', label:'Trxs', type:'number'},
+    {key:'amount', label:'Amount', type:'number'},
+    {key:'revenue', label:'Revenue', type:'number'},
+  ];
+}
+
+function renderMonthlyTable(dataArr, headId, bodyId, footId, onDataChange, readOnly){
+  const head = document.getElementById(headId);
+  let headHtml = '';
+  tableCols().forEach(c => headHtml += `<th>${esc(c.label)}</th>`);
+  headHtml += `<th>Ticket Size</th><th>Trx/User</th><th>User Spend</th>`;
+  head.innerHTML = headHtml;
+
+  const body = document.getElementById(bodyId);
+  body.innerHTML = dataArr.map((row, i) => {
+    const d = computeDerived(row);
+    let r = '<tr>';
+    if(readOnly){
+      r += `<td style="font-weight:600;">${esc(row.month)}</td>`;
+      r += `<td>${fmtNum(row.users)}</td>`;
+      r += `<td>${fmtNum(row.trxs)}</td>`;
+      r += `<td>${fmtMoney(row.amount)}</td>`;
+      r += `<td>${fmtNum(row.revenue)}</td>`;
+    } else {
+      r += `<td><input class="cell-input month-input" data-idx="${i}" data-field="month" value="${esc(row.month)}"></td>`;
+      r += `<td><input class="cell-input" type="number" data-idx="${i}" data-field="users" value="${row.users}"></td>`;
+      r += `<td><input class="cell-input" type="number" data-idx="${i}" data-field="trxs" value="${row.trxs}"></td>`;
+      r += `<td><input class="cell-input" type="number" step="0.01" data-idx="${i}" data-field="amount" value="${row.amount}"></td>`;
+      r += `<td><input class="cell-input" type="number" step="0.01" data-idx="${i}" data-field="revenue" value="${row.revenue}"></td>`;
+    }
+    r += `<td class="computed">${fmtMoney(d.ticketSize)}</td>`;
+    r += `<td class="computed">${d.trxPerUser.toFixed(2)}</td>`;
+    r += `<td class="computed">${fmtMoney(d.userSpend)}</td>`;
+    r += '</tr>';
+    return r;
+  }).join('');
+
+  renderMonthlyFoot(dataArr, footId);
+
+  if(!readOnly){
+    body.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const idx = Number(inp.dataset.idx);
+        const field = inp.dataset.field;
+        let val = inp.value;
+        if(field !== 'month') val = val === '' ? 0 : Number(val);
+        dataArr[idx][field] = val;
+        saveState();
+        refreshComputedOnly(dataArr, bodyId, footId);
+        onDataChange && onDataChange();
+      });
+    });
+  }
+}
+
+function renderMonthlyFoot(dataArr, footId){
+  const totUsers = dataArr.reduce((s,r)=>s+(Number(r.users)||0),0);
+  const totTrxs = dataArr.reduce((s,r)=>s+(Number(r.trxs)||0),0);
+  const totAmount = dataArr.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const totRevenue = dataArr.reduce((s,r)=>s+(Number(r.revenue)||0),0);
+  const avgTicket = totTrxs>0 ? totAmount/totTrxs : 0;
+  const avgTrxUser = totUsers>0 ? totTrxs/totUsers : 0;
+  const avgUserSpend = totUsers>0 ? totAmount/totUsers : 0;
+  document.getElementById(footId).innerHTML = `
+    <tr><td>Total / Avg</td><td>${fmtNum(totUsers)}</td><td>${fmtNum(totTrxs)}</td><td>${fmtMoney(totAmount)}</td>
+    <td>${fmtNum(totRevenue)}</td><td>${fmtMoney(avgTicket)}</td><td>${avgTrxUser.toFixed(2)}</td><td>${fmtMoney(avgUserSpend)}</td></tr>`;
+}
+
+function refreshComputedOnly(dataArr, bodyId, footId){
+  const rows = document.querySelectorAll('#'+bodyId+' tr');
+  rows.forEach((tr, i) => {
+    const d = computeDerived(dataArr[i]);
+    const tds = tr.querySelectorAll('td.computed');
+    tds[0].textContent = fmtMoney(d.ticketSize);
+    tds[1].textContent = d.trxPerUser.toFixed(2);
+    tds[2].textContent = fmtMoney(d.userSpend);
+  });
+  renderMonthlyFoot(dataArr, footId);
+}
+
+// ==================== Charts ====================
+function lineChart(labels, values, color, fmt, keyId){
+  const W = 340, H = 190;
+  const padL = 46, padR = 16, padT = 24, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxV = Math.max(...values, 0), minV = Math.min(...values, 0);
+  const range = (maxV - minV) || Math.abs(maxV) || 1;
+  let yMax = maxV + range*0.18, yMin = minV - range*0.18;
+  if(minV >= 0 && yMin < 0) yMin = 0;
+  const yRange = (yMax - yMin) || 1;
+  const stepX = values.length>1 ? plotW/(values.length-1) : 0;
+  const pts = values.map((v,i)=>{
+    const x = padL + i*stepX;
+    const y = padT + plotH - ((v-yMin)/yRange)*plotH;
+    return [x,y];
+  });
+  const path = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const baseline = padT+plotH;
+  const areaPath = path + ` L${pts[pts.length-1][0].toFixed(1)},${baseline} L${pts[0][0].toFixed(1)},${baseline} Z`;
+  const gradId = 'grad_' + (keyId || Math.random().toString(36).slice(2));
+
+  const gridVals = [yMin, (yMin+yMax)/2, yMax];
+  const gridLines = gridVals.map(v => {
+    const y = padT + plotH - ((v-yMin)/yRange)*plotH;
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#9AA0A6" text-anchor="end">${fmt(v)}</text>`;
+  }).join('');
+  const xLabels = labels.map((lab,i) => {
+    const x = padL + i*stepX;
+    return `<text x="${x.toFixed(1)}" y="${H-8}" font-size="9.5" fill="#6B7280" text-anchor="middle">${esc(lab)}</text>`;
+  }).join('');
+  const dataLabels = pts.map((p,i) => {
+    const labY = i>0 && values[i]<values[i-1] ? p[1]+14 : p[1]-8;
+    return `<text x="${p[0].toFixed(1)}" y="${labY.toFixed(1)}" font-size="9.5" fill="${color}" text-anchor="middle" font-weight="700">${fmt(values[i])}</text>`;
+  }).join('');
+  const dots = pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.4" fill="${color}" stroke="#fff" stroke-width="1.6"/>`).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}">
+    <defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+    </linearGradient></defs>
+    ${gridLines}
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="#D9DDE3" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="#D9DDE3" stroke-width="1"/>
+    <path d="${areaPath}" fill="url(#${gradId})" stroke="none"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${dataLabels}${xLabels}
+  </svg>`;
+}
+
+// Dual-line comparison chart (Branch vs Branchless), no data labels (would clutter with 2 series), light legend externally
+function multiLineChart(labels, series, fmt){
+  // series: [{values, color, dash: '6,3' or null}, ...]
+  const W = 340, H = 190;
+  const padL = 46, padR = 16, padT = 36, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const all = series.flatMap(s => s.values);
+  const maxV = Math.max(...all, 0), minV = Math.min(...all, 0);
+  const range = (maxV-minV) || Math.abs(maxV) || 1;
+  let yMax = maxV + range*0.18, yMin = minV - range*0.18;
+  if(minV >= 0 && yMin < 0) yMin = 0;
+  const yRange = (yMax-yMin) || 1;
+  const stepX = labels.length>1 ? plotW/(labels.length-1) : 0;
+
+  function buildPath(values){
+    const pts = values.map((v,i) => {
+      const x = padL + i*stepX;
+      const y = padT + plotH - ((v-yMin)/yRange)*plotH;
+      return [x,y];
+    });
+    return {pts, path: pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')};
+  }
+  const built = series.map(s => Object.assign({}, s, buildPath(s.values)));
+
+  const gridVals = [yMin, (yMin+yMax)/2, yMax];
+  const gridLines = gridVals.map(v => {
+    const y = padT + plotH - ((v-yMin)/yRange)*plotH;
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E9EBEF" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#9AA0A6" text-anchor="end">${fmt(v)}</text>`;
+  }).join('');
+  const xLabels = labels.map((lab,i) => {
+    const x = padL + i*stepX;
+    return `<text x="${x.toFixed(1)}" y="${H-8}" font-size="9.5" fill="#6B7280" text-anchor="middle">${esc(lab)}</text>`;
+  }).join('');
+
+  const MIN_LABEL_GAP = 13;
+  // For each x-index, compute default label Y per series, then push apart to maintain min gap
+  const labelYPerSeries = built.map(() => []);
+  for(let i=0;i<labels.length;i++){
+    const order = built.map((s, si) => ({si, y: s.pts[i][1] - 8})).sort((a,b) => a.y - b.y);
+    for(let k=1;k<order.length;k++){
+      if(order[k].y - order[k-1].y < MIN_LABEL_GAP) order[k].y = order[k-1].y + MIN_LABEL_GAP;
+    }
+    order.forEach(o => { labelYPerSeries[o.si][i] = o.y; });
+  }
+
+  let dotsHtml = '', pathsHtml = '', labelsHtml = '';
+  built.forEach((s, si) => {
+    pathsHtml += `<path d="${s.path}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
+    dotsHtml += s.pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${s.color}" stroke="#fff" stroke-width="1.4"/>`).join('');
+    labelsHtml += s.pts.map((p,i) => `<text x="${p[0].toFixed(1)}" y="${labelYPerSeries[si][i].toFixed(1)}" font-size="8.5" fill="${s.color}" text-anchor="middle" font-weight="700">${fmt(s.values[i])}</text>`).join('');
+  });
+
+  return `<svg viewBox="0 0 ${W} ${H}">
+    ${gridLines}
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="#D9DDE3" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="#D9DDE3" stroke-width="1"/>
+    ${pathsHtml}${dotsHtml}${labelsHtml}${xLabels}
+  </svg>`;
+}
+
+const METRIC_DEFS = [
+  {key:'revenue', label:'Revenue', icon:'&#128176;', color:'#158F63', getVal:r=>Number(r.revenue)||0, fmt:fmtAbbrev, full:v=>fmtNum(v)},
+  {key:'users', label:'Active Users', icon:'&#128101;', color:'#2E5FD9', getVal:r=>Number(r.users)||0, fmt:fmtAbbrev, full:v=>fmtNum(v)},
+  {key:'trxs', label:'Transactions', icon:'&#128257;', color:'#158F63', getVal:r=>Number(r.trxs)||0, fmt:fmtAbbrev, full:v=>fmtNum(v)},
+  {key:'amount', label:'Amount', icon:'&#128181;', color:'#B4791E', getVal:r=>Number(r.amount)||0, fmt:fmtAbbrev, full:v=>fmtMoney(v)},
+  {key:'ticketSize', label:'Ticket Size', icon:'&#127915;', color:'#7C4FC7', getVal:(r,d)=>d.ticketSize, fmt:fmtAbbrev, full:v=>fmtMoney(v)},
+  {key:'trxPerUser', label:'Trx / User', icon:'&#128260;', color:'#C6394A', getVal:(r,d)=>d.trxPerUser, fmt:v=>v.toFixed(2), full:v=>v.toFixed(2)},
+  {key:'userSpend', label:'User Spend', icon:'&#128717;', color:'#2E5FD9', getVal:(r,d)=>d.userSpend, fmt:fmtAbbrev, full:v=>fmtMoney(v)},
+];
+
+function renderChartGrid(containerId, dataArr){
+  const labels = dataArr.map(r=>r.month);
+  const grid = document.getElementById(containerId);
+  grid.innerHTML = METRIC_DEFS.map(def => {
+    const values = dataArr.map(r => def.getVal(r, computeDerived(r)));
+    const latest = values.length ? values[values.length-1] : 0;
+    const latestLabel = labels.length ? labels[labels.length-1] : '';
+    return `
+      <div class="chart-card" style="--accent:${def.color}">
+        <div class="chart-title"><span class="chart-icon">${def.icon}</span>${esc(def.label)}</div>
+        <div class="chart-latest">${esc(latestLabel)}: ${def.full(latest)}</div>
+        ${lineChart(labels, values, def.color, def.fmt, containerId+'_'+def.key)}
+      </div>`;
+  }).join('');
+}
+
+function unionMonthLabels(...arrays){
+  const seen = new Map(); // monthIndex -> label
+  arrays.forEach(arr => arr.forEach(r => {
+    const mi = monthIndexFromLabel(r.month);
+    if(mi >= 0 && !seen.has(mi)) seen.set(mi, r.month);
+  }));
+  return [...seen.entries()].sort((a,b)=>a[0]-b[0]).map(([mi,label]) => ({mi, label}));
+}
+
+function alignValues(dataArr, canonical, getVal){
+  return canonical.map(c => {
+    const row = dataArr.find(r => monthIndexFromLabel(r.month) === c.mi);
+    return row ? getVal(row, computeDerived(row)) : 0;
+  });
+}
+
+// Overall Portfolio = Branch + Branchless + Core, always freshly computed so it can never fall out of sync
+function computeOverallData(){
+  const canonical = unionMonthLabels(BRANCH, BRANCHLESS, CORE);
+  return canonical.map(c => {
+    const b = BRANCH.find(r => monthIndexFromLabel(r.month) === c.mi);
+    const bl = BRANCHLESS.find(r => monthIndexFromLabel(r.month) === c.mi);
+    const co = CORE.find(r => monthIndexFromLabel(r.month) === c.mi);
+    const users = (b?Number(b.users):0) + (bl?Number(bl.users):0) + (co?Number(co.users):0);
+    const trxs = (b?Number(b.trxs):0) + (bl?Number(bl.trxs):0) + (co?Number(co.trxs):0);
+    const amount = (b?Number(b.amount):0) + (bl?Number(bl.amount):0) + (co?Number(co.amount):0);
+    const revenue = (b?Number(b.revenue):0) + (bl?Number(bl.revenue):0) + (co?Number(co.revenue):0);
+    return {month: c.label, users, trxs, amount: Math.round(amount*100)/100, revenue: Math.round(revenue*100)/100};
+  });
+}
+
+function renderComparisonCharts(){
+  const canonical = unionMonthLabels(BRANCHLESS, BRANCH, CORE);
+  const labels = canonical.map(c => c.label);
+  const grid = document.getElementById('comparisonChartGrid');
+  const colorBranchless = '#2E5FD9', colorBranch = '#B4791E', colorCore = '#7C4FC7';
+  grid.innerHTML = METRIC_DEFS.map(def => {
+    const valsLess = alignValues(BRANCHLESS, canonical, def.getVal);
+    const valsBranch = alignValues(BRANCH, canonical, def.getVal);
+    const valsCore = alignValues(CORE, canonical, def.getVal);
+    const series = [
+      {values: valsLess, color: colorBranchless, dash: null},
+      {values: valsBranch, color: colorBranch, dash: '6,3'},
+      {values: valsCore, color: colorCore, dash: '2,3'},
+    ];
+    return `
+      <div class="chart-card" style="--accent:${colorBranchless}">
+        <div class="chart-title"><span class="chart-icon">${def.icon}</span>${esc(def.label)}</div>
+        <div class="chart-latest">Solid = Branchless &middot; Dashed = Branch &middot; Dotted = Core</div>
+        ${multiLineChart(labels, series, def.fmt)}
+        <div class="chart-legend">
+          <span><span class="sw" style="background:${colorBranchless}"></span>Branchless</span>
+          <span><span class="sw" style="background:${colorBranch}"></span>Branch</span>
+          <span><span class="sw" style="background:${colorCore}"></span>Core</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ==================== Top 8 Billers / Users ====================
+function renderTop10(bodyId, barListId, dataArr, labelKey, colorTop){
+  const body = document.getElementById(bodyId);
+  body.innerHTML = dataArr.map((r, i) => {
+    const d = computeDerived(r);
+    return `<tr>
+      <td><span class="rank-badge">${i+1}</span></td>
+      <td style="font-weight:600;">${esc(r[labelKey])}</td>
+      <td>${fmtNum(r.users)}</td>
+      <td>${fmtNum(r.trxs)}</td>
+      <td>${fmtMoney(r.amount)}</td>
+      <td>${fmtMoney(d.ticketSize)}</td>
+      <td>${d.trxPerUser.toFixed(2)}</td>
+      <td>${fmtMoney(d.userSpend)}</td>
+      <td>${fmtNum(r.revenue)}</td>
+    </tr>`;
+  }).join('');
+
+  const maxAmt = Math.max(1, ...dataArr.map(r => Number(r.amount)||0));
+  const barList = document.getElementById(barListId);
+  barList.innerHTML = dataArr.map(r => {
+    const pct = ((Number(r.amount)||0)/maxAmt)*100;
+    return `<div class="bar-row">
+      <div class="bar-label" title="${esc(r[labelKey])}">${esc(r[labelKey])}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colorTop}"></div></div>
+      <div class="bar-total">${fmtMoney(r.amount)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ==================== Toolbar actions ====================
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(confirm('This will discard all edits and restore the original computed data. Continue?')){
+    const fresh = JSON.parse(JSON.stringify(ORIGINAL_STATE));
+    BRANCH = fresh.branch; BRANCHLESS = fresh.branchless; CORE = fresh.core || [];
+    TOP10_BILLERS_BRANCH = fresh.top10BillersBranch; TOP10_BILLERS_BRANCHLESS = fresh.top10BillersBranchless;
+    TOP8_BILLERS_CORE = fresh.top8BillersCore || [];
+    TOP10_USERS_BRANCH = fresh.top10UsersBranch; TOP10_USERS_BRANCHLESS = fresh.top10UsersBranchless;
+    OVERALL_INTRO = fresh.overallIntro; TOP8_MONTH = fresh.top8Month || 'June 2026'; HAS_UPLOADED_DATA = false;
+    saveState();
+    renderAll();
+  }
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const rows = [];
+  function addSection(title, arr){
+    rows.push('');
+    rows.push(title);
+    rows.push('Month,Users,Trxs,Amount,Revenue,Ticket Size,Trx/User,User Spend');
+    arr.forEach(r => {
+      const d = computeDerived(r);
+      rows.push([r.month, r.users, r.trxs, r.amount, r.revenue, d.ticketSize.toFixed(2), d.trxPerUser.toFixed(4), d.userSpend.toFixed(2)]
+        .map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','));
+    });
+  }
+  addSection('Overall Portfolio', computeOverallData());
+  addSection('Branchless (Mobile App)', BRANCHLESS);
+  addSection('Branch (Web/USSD)', BRANCH);
+  addSection('Core (Core Banking)', CORE);
+
+  function addTop10(title, arr, labelKey, labelHeader){
+    rows.push('');
+    rows.push(title);
+    rows.push(labelHeader+',Users,Trxs,Amount,Revenue,Ticket Size,Trx/User,User Spend');
+    arr.forEach(r => {
+      const d = computeDerived(r);
+      rows.push([r[labelKey], r.users, r.trxs, r.amount, r.revenue, d.ticketSize.toFixed(2), d.trxPerUser.toFixed(4), d.userSpend.toFixed(2)]
+        .map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','));
+    });
+  }
+  addTop10('Top 8 Billers - Branchless (June)', TOP10_BILLERS_BRANCHLESS, 'prefix', 'Prefix');
+  addTop10('Top 8 Billers - Branch (June)', TOP10_BILLERS_BRANCH, 'prefix', 'Prefix');
+  addTop10('Top 8 Billers - Core (June)', TOP8_BILLERS_CORE, 'prefix', 'Prefix');
+  addTop10('Top 8 Users - Branchless (June)', TOP10_USERS_BRANCHLESS, 'name', 'Name');
+  addTop10('Top 8 Users - Branch (June)', TOP10_USERS_BRANCH, 'name', 'Name');
+
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'channel_biller_report_export.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('publishBtn').addEventListener('click', () => {
+  if(!confirm('This downloads a new index.html with all current data baked in as the new baseline.\n\nRe-upload this file to your host (replacing index.html) to make everything visible to everyone.\n\nContinue?')) return;
+
+  const newState = {
+    branch: BRANCH, branchless: BRANCHLESS,
+    overallTotal: ORIGINAL_STATE.overallTotal, branchTotal: ORIGINAL_STATE.branchTotal, branchlessTotal: ORIGINAL_STATE.branchlessTotal,
+    top10BillersBranch: TOP10_BILLERS_BRANCH, top10BillersBranchless: TOP10_BILLERS_BRANCHLESS,
+    core: CORE, top8BillersCore: TOP8_BILLERS_CORE,
+    top10UsersBranch: TOP10_USERS_BRANCH, top10UsersBranchless: TOP10_USERS_BRANCHLESS,
+    overallIntro: OVERALL_INTRO, top8Month: TOP8_MONTH, hasUploadedData: HAS_UPLOADED_DATA
+  };
+  const newJson = JSON.stringify(newState).replace(/\$/g, '$$$$');
+  let html = '<!doctype html>\n' + document.documentElement.outerHTML;
+  html = html.replace(/\/\*STATE_START\*\/[\s\S]*?\/\*STATE_END\*\//, '/*STATE_START*/' + newJson + '/*STATE_END*/');
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'index.html';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ==================== Init ====================
+function renderOverallAll(){
+  renderOverallKpis();
+  const introEl = document.getElementById('overallIntro');
+  introEl.value = OVERALL_INTRO;
+  autoSize(introEl);
+  const overallData = computeOverallData();
+  renderChartGrid('overallChartGrid', overallData);
+  renderMonthlyTable(overallData, 'overallHeadRow', 'overallBody', 'overallFoot', null, true);
+}
+document.getElementById('overallIntro').addEventListener('input', function(){ OVERALL_INTRO = this.value; autoSize(this); saveState(); });
+
+function renderChannelAll(){
+  renderComparisonCharts();
+  const onEdit = () => { renderComparisonCharts(); renderOverallAll(); };
+  renderMonthlyTable(BRANCHLESS, 'branchlessHeadRow', 'branchlessBody', 'branchlessFoot', onEdit);
+  renderMonthlyTable(BRANCH, 'branchHeadRow', 'branchBody', 'branchFoot', onEdit);
+  renderMonthlyTable(CORE, 'coreHeadRow', 'coreBody', 'coreFoot', onEdit);
+}
+
+function renderAll(){
+  renderOverallAll();
+  renderChannelAll();
+  renderTop10('billersBranchlessBody', 'billersBranchlessBarList', TOP10_BILLERS_BRANCHLESS, 'prefix', '#2E5FD9');
+  renderTop10('billersBranchBody', 'billersBranchBarList', TOP10_BILLERS_BRANCH, 'prefix', '#B4791E');
+  renderTop10('billersCoreBody', 'billersCoreBarList', TOP8_BILLERS_CORE, 'prefix', '#7C4FC7');
+  renderTop10('usersBranchlessBody', 'usersBranchlessBarList', TOP10_USERS_BRANCHLESS, 'name', '#2E5FD9');
+  renderTop10('usersBranchBody', 'usersBranchBarList', TOP10_USERS_BRANCH, 'name', '#B4791E');
+  renderTop8MonthInputs();
+}
+
+function renderTop8MonthInputs(){
+  document.querySelectorAll('[data-sync="top8Month"]').forEach(inp => {
+    inp.value = TOP8_MONTH;
+    inp.oninput = function(){
+      TOP8_MONTH = this.value;
+      saveState();
+      document.querySelectorAll('[data-sync="top8Month"]').forEach(other => { if(other !== this) other.value = TOP8_MONTH; });
+    };
+  });
+}
+
+// ==================== Upload New Month's Data ====================
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_ABBR  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function monthIndexFromLabel(label){
+  if(!label) return -1;
+  const s = String(label).trim().toLowerCase();
+  let idx = MONTH_NAMES.findIndex(m => m.toLowerCase() === s);
+  if(idx >= 0) return idx;
+  idx = MONTH_ABBR.findIndex(m => m.toLowerCase() === s);
+  return idx;
+}
+
+function slabFee(amount){
+  const bins = [5000, 10000, 100000, 250000, 1000000, 2500000, 5000000];
+  const fees = [12.50, 15.50, 39, 62.50, 125, 250, 375, 500];
+  for(let i=0;i<bins.length;i++){ if(amount <= bins[i]) return fees[i]; }
+  return fees[fees.length-1];
+}
+
+function excelDateToJs(val){
+  if(val instanceof Date) return val;
+  if(typeof val === 'number'){
+    // Excel serial date (days since 1899-12-30)
+    const epoch = new Date(Date.UTC(1899, 11, 30));
+    return new Date(epoch.getTime() + val * 86400000);
+  }
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function showUploadBanner(type, html){
+  const el = document.getElementById('uploadStatusBanner');
+  el.className = type;
+  el.style.display = 'flex';
+  el.innerHTML = html;
+}
+
+function aggFromRows(rows){
+  const userSet = new Set(), trxSet = new Set();
+  let amount = 0, revenue = 0;
+  rows.forEach(r => {
+    userSet.add(r.ID_PAYER);
+    trxSet.add(r.ID_TXN);
+    amount += r.AMOUNT;
+    revenue += slabFee(r.AMOUNT) / 2;
+  });
+  const users = userSet.size, trxs = trxSet.size;
+  return {
+    users, trxs, amount: Math.round(amount*100)/100, revenue: Math.round(revenue*100)/100,
+  };
+}
+
+// Core uses a different rule: Account_No for unique users, and every row counts as one transaction
+function aggFromRowsCore(rows){
+  const userSet = new Set();
+  let amount = 0, revenue = 0;
+  rows.forEach(r => {
+    userSet.add(r.ACCOUNT_NO);
+    amount += r.AMOUNT;
+    revenue += slabFee(r.AMOUNT) / 2;
+  });
+  const users = userSet.size, trxs = rows.length;
+  return {
+    users, trxs, amount: Math.round(amount*100)/100, revenue: Math.round(revenue*100)/100,
+  };
+}
+
+function top8FromRowsCore(rows, groupField, labelKey){
+  const groups = {};
+  rows.forEach(r => {
+    const key = groupField(r);
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  const totals = Object.entries(groups).map(([key, grp]) => ({ key, grp, amount: grp.reduce((s,r)=>s+r.AMOUNT,0) }));
+  totals.sort((a,b) => b.amount - a.amount);
+  return totals.slice(0,8).map(t => {
+    const a = aggFromRowsCore(t.grp);
+    const row = {}; row[labelKey] = t.key;
+    row.users = a.users; row.trxs = a.trxs; row.amount = a.amount; row.revenue = a.revenue;
+    return row;
+  });
+}
+
+function upsertMonthRow(arr, monthIdx, newRow){
+  const existingIdx = arr.findIndex(r => monthIndexFromLabel(r.month) === monthIdx);
+  if(existingIdx >= 0){ arr[existingIdx] = Object.assign({}, arr[existingIdx], newRow); }
+  else{
+    arr.push(newRow);
+    arr.sort((a,b) => monthIndexFromLabel(a.month) - monthIndexFromLabel(b.month));
+  }
+}
+
+function top8FromRows(rows, groupField, labelKey){
+  const groups = {};
+  rows.forEach(r => {
+    const key = groupField(r);
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  const totals = Object.entries(groups).map(([key, grp]) => ({ key, grp, amount: grp.reduce((s,r)=>s+r.AMOUNT,0) }));
+  totals.sort((a,b) => b.amount - a.amount);
+  return totals.slice(0,8).map(t => {
+    const a = aggFromRows(t.grp);
+    const row = {}; row[labelKey] = t.key;
+    row.users = a.users; row.trxs = a.trxs; row.amount = a.amount; row.revenue = a.revenue;
+    return row;
+  });
+}
+
+// ==================== Filename-based month detection ====================
+function parseMonthYearFromFilename(filename){
+  const name = filename.toLowerCase().replace(/\.[^.]+$/, ''); // strip extension
+  const yearMatch = name.match(/20\d{2}/);
+  const year = yearMatch ? Number(yearMatch[0]) : new Date().getFullYear();
+
+  for(let i=0;i<12;i++){
+    const full = MONTH_NAMES[i].toLowerCase();
+    const abbr = MONTH_ABBR[i].toLowerCase();
+    if(name.includes(full) || new RegExp('(^|[^a-z])'+abbr+'([^a-z]|$)').test(name)){
+      return {monthIdx: i, year};
+    }
+  }
+  let m = name.match(/20\d{2}[-_]?(\d{2})\b/);
+  if(m){ const mo = Number(m[1]); if(mo>=1 && mo<=12) return {monthIdx: mo-1, year}; }
+  m = name.match(/(?:^|[^\d])(\d{1,2})[-_]20\d{2}(?:[^\d]|$)/);
+  if(m){ const mo = Number(m[1]); if(mo>=1 && mo<=12) return {monthIdx: mo-1, year}; }
+  return null;
+}
+
+// ==================== Staging area ====================
+let STAGED_MAIN = null; // {monthIdx, year, filename, rowCount, branchAgg, branchlessAgg, rows}
+let STAGED_CORE = null; // {monthIdx, year, filename, rowCount, coreAgg, rows}
+
+function monthYearLabel(monthIdx, year){ return MONTH_NAMES[monthIdx] + ' ' + year; }
+
+function updateStagingUI(){
+  const panel = document.getElementById('stagingPanel');
+  const hasAny = STAGED_MAIN || STAGED_CORE;
+  panel.style.display = hasAny ? 'flex' : 'none';
+  if(!hasAny) return;
+
+  const mainEl = document.getElementById('stagingMainStatus');
+  const coreEl = document.getElementById('stagingCoreStatus');
+  const computeBtn = document.getElementById('computeBtn');
+
+  mainEl.textContent = STAGED_MAIN
+    ? ('Staged for ' + monthYearLabel(STAGED_MAIN.monthIdx, STAGED_MAIN.year) + ' (' + STAGED_MAIN.rowCount.toLocaleString() + ' rows) — "' + STAGED_MAIN.filename + '"')
+    : 'Not uploaded yet';
+  mainEl.className = 'staging-status' + (STAGED_MAIN ? ' ready' : '');
+
+  coreEl.textContent = STAGED_CORE
+    ? ('Staged for ' + monthYearLabel(STAGED_CORE.monthIdx, STAGED_CORE.year) + ' (' + STAGED_CORE.rowCount.toLocaleString() + ' rows) — "' + STAGED_CORE.filename + '"')
+    : 'Not uploaded yet';
+  coreEl.className = 'staging-status' + (STAGED_CORE ? ' ready' : '');
+
+  if(STAGED_MAIN && STAGED_CORE){
+    const sameMonth = STAGED_MAIN.monthIdx === STAGED_CORE.monthIdx && STAGED_MAIN.year === STAGED_CORE.year;
+    if(sameMonth){
+      computeBtn.disabled = false;
+      computeBtn.textContent = 'Compute ' + monthYearLabel(STAGED_MAIN.monthIdx, STAGED_MAIN.year);
+      mainEl.className = 'staging-status ready';
+      coreEl.className = 'staging-status ready';
+    } else {
+      computeBtn.disabled = true;
+      computeBtn.textContent = 'Compute';
+      mainEl.className = 'staging-status mismatch';
+      coreEl.className = 'staging-status mismatch';
+    }
+  } else {
+    computeBtn.disabled = true;
+    computeBtn.textContent = 'Compute';
+  }
+}
+
+document.getElementById('clearStagingBtn').addEventListener('click', () => {
+  STAGED_MAIN = null;
+  STAGED_CORE = null;
+  updateStagingUI();
+  document.getElementById('uploadStatusBanner').style.display = 'none';
+});
+
+document.getElementById('computeBtn').addEventListener('click', () => {
+  if(!STAGED_MAIN || !STAGED_CORE) return;
+  const monthIdx = STAGED_MAIN.monthIdx, year = STAGED_MAIN.year;
+  const label = MONTH_ABBR[monthIdx];
+
+  upsertMonthRow(BRANCH, monthIdx, Object.assign({month: label}, STAGED_MAIN.branchAgg));
+  upsertMonthRow(BRANCHLESS, monthIdx, Object.assign({month: label}, STAGED_MAIN.branchlessAgg));
+  upsertMonthRow(CORE, monthIdx, Object.assign({month: label}, STAGED_CORE.coreAgg));
+
+  TOP10_BILLERS_BRANCH = top8FromRows(STAGED_MAIN.rows.filter(r=>r.CHANNEL==='Branch'), r=>r.BILLER_PREFIX, 'prefix');
+  TOP10_BILLERS_BRANCHLESS = top8FromRows(STAGED_MAIN.rows.filter(r=>r.CHANNEL==='Branchless'), r=>r.BILLER_PREFIX, 'prefix');
+  TOP10_USERS_BRANCH = top8FromRows(STAGED_MAIN.rows.filter(r=>r.CHANNEL==='Branch'), r=>r.ID_PAYER_NAME, 'name');
+  TOP10_USERS_BRANCHLESS = top8FromRows(STAGED_MAIN.rows.filter(r=>r.CHANNEL==='Branchless'), r=>r.ID_PAYER_NAME, 'name');
+  TOP8_BILLERS_CORE = top8FromRowsCore(STAGED_CORE.rows, r=>r.BILLER_PREFIX, 'prefix');
+  TOP8_MONTH = monthYearLabel(monthIdx, year);
+  HAS_UPLOADED_DATA = true;
+
+  const monthLabelText = TOP8_MONTH;
+  STAGED_MAIN = null;
+  STAGED_CORE = null;
+
+  saveState();
+  renderAll();
+  updateStagingUI();
+
+  showUploadBanner('success', '&#9989; Computed <b>' + esc(monthLabelText) + '</b> from both files — Branch, Branchless, and Core monthly figures updated, and Top 8 Billers/Users recalculated for that month.');
+});
+
+document.getElementById('uploadMonthBtn').addEventListener('click', () => {
+  document.getElementById('uploadFileInput').click();
+});
+
+document.getElementById('uploadFileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  showUploadBanner('info', '<span class="spinner"></span> Reading "'+esc(file.name)+'"…');
+
+  const my = parseMonthYearFromFilename(file.name);
+  if(!my){
+    showUploadBanner('error', '&#10060; Could not figure out which month this file is for. Please include the month in the filename, e.g. "BranchBranchless_July2026.xlsx".');
+    document.getElementById('uploadFileInput').value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(sheet, {defval:null});
+
+      if(raw.length === 0) throw new Error('The uploaded file has no data rows.');
+      const requiredCols = ['STR_ORDER_CHANNEL','ID_PAYER','ID_TXN','AMOUNT','STR_MERCHANT_ORDER_ID','ID_PAYER_NAME'];
+      const missing = requiredCols.filter(c => !(c in raw[0]));
+      if(missing.length) throw new Error('Missing expected column(s): ' + missing.join(', ') + '. Make sure the file has the same columns as before.');
+
+      // Every row in this file counts as belonging to the month named in the filename —
+      // no per-row date bucketing, so stray/mislabeled dates inside the file can't cause misfires.
+      const rows = raw.map(r => ({
+        CHANNEL: r.STR_ORDER_CHANNEL === 'Finca Mobile App' ? 'Branchless' : 'Branch',
+        ID_PAYER: r.ID_PAYER,
+        ID_TXN: r.ID_TXN,
+        AMOUNT: Number(r.AMOUNT) || 0,
+        BILLER_PREFIX: String(r.STR_MERCHANT_ORDER_ID || '').split('|')[0],
+        ID_PAYER_NAME: r.ID_PAYER_NAME,
+      }));
+
+      STAGED_MAIN = {
+        monthIdx: my.monthIdx, year: my.year, filename: file.name, rowCount: rows.length,
+        branchAgg: aggFromRows(rows.filter(r => r.CHANNEL === 'Branch')),
+        branchlessAgg: aggFromRows(rows.filter(r => r.CHANNEL === 'Branchless')),
+        rows: rows,
+      };
+      updateStagingUI();
+      showUploadBanner('info', '&#128196; Branch+Branchless staged for <b>' + esc(monthYearLabel(my.monthIdx, my.year)) + '</b> (' + rows.length.toLocaleString() + ' rows). ' +
+        (STAGED_CORE ? 'Click Compute below once months match.' : 'Now upload the matching Core file for the same month.'));
+    }catch(err){
+      console.error(err);
+      showUploadBanner('error', '&#10060; Could not process this file: ' + esc(err.message));
+    }
+    document.getElementById('uploadFileInput').value = '';
+  };
+  reader.onerror = function(){
+    showUploadBanner('error', '&#10060; Could not read the file. Please try again.');
+    document.getElementById('uploadFileInput').value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('uploadCoreBtn').addEventListener('click', () => {
+  document.getElementById('uploadCoreFileInput').click();
+});
+
+document.getElementById('uploadCoreFileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  showUploadBanner('info', '<span class="spinner"></span> Reading Core file "'+esc(file.name)+'"…');
+
+  const my = parseMonthYearFromFilename(file.name);
+  if(!my){
+    showUploadBanner('error', '&#10060; Could not figure out which month this file is for. Please include the month in the filename, e.g. "Core_July2026.xlsx".');
+    document.getElementById('uploadCoreFileInput').value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(sheet, {defval:null});
+
+      if(raw.length === 0) throw new Error('The uploaded file has no data rows.');
+      const requiredCols = ['Account_No','Amount','Advice_No','Biller_Code'];
+      const missing = requiredCols.filter(c => !(c in raw[0]));
+      if(missing.length) throw new Error('Missing expected column(s): ' + missing.join(', ') + '. Make sure the file has the same columns as the Core dump.');
+
+      // Every row in this file counts as belonging to the month named in the filename.
+      const rows = raw.map(r => {
+        const adv = r.Advice_No === null || r.Advice_No === undefined ? '' : String(r.Advice_No);
+        const effectiveBiller = adv.length === 8 ? adv : r.Biller_Code;
+        return {
+          ACCOUNT_NO: r.Account_No,
+          AMOUNT: Number(r.Amount) || 0,
+          BILLER_PREFIX: effectiveBiller,
+        };
+      }).filter(r => r.BILLER_PREFIX);
+
+      if(rows.length === 0) throw new Error('Could not resolve a biller (Advice_No/Biller_Code) for any row.');
+
+      STAGED_CORE = {
+        monthIdx: my.monthIdx, year: my.year, filename: file.name, rowCount: rows.length,
+        coreAgg: aggFromRowsCore(rows),
+        rows: rows,
+      };
+      updateStagingUI();
+      showUploadBanner('info', '&#128196; Core staged for <b>' + esc(monthYearLabel(my.monthIdx, my.year)) + '</b> (' + rows.length.toLocaleString() + ' rows). ' +
+        (STAGED_MAIN ? 'Click Compute below once months match.' : 'Now upload the matching Branch+Branchless file for the same month.'));
+    }catch(err){
+      console.error(err);
+      showUploadBanner('error', '&#10060; Could not process this Core file: ' + esc(err.message));
+    }
+    document.getElementById('uploadCoreFileInput').value = '';
+  };
+  reader.onerror = function(){
+    showUploadBanner('error', '&#10060; Could not read the file. Please try again.');
+    document.getElementById('uploadCoreFileInput').value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+applyLockState();
+applyViewGate();
+renderAll();
+
+</script>
+
+
+</body></html>
