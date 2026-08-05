@@ -211,9 +211,9 @@
       <span class="subtitle">All channels combined</span>
     </div>
     <div class="section-body">
-      <div class="kpi-strip-label">Latest Month (June) vs Prior Month</div>
+      <div class="kpi-strip-label" id="latestMonthLabel">Latest Month vs Prior Month</div>
       <div class="kpi-strip" id="overallKpiStrip"></div>
-      <div class="kpi-strip-label">Jan–Jun 2026 Cumulative (Unique / Total)</div>
+      <div class="kpi-strip-label" id="cumulativeLabel">Cumulative (Complete Months Only)</div>
       <div class="kpi-strip" id="overallTotalStrip"></div>
       <textarea class="intro-text" id="overallIntro" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-height:50px;font-family:inherit;font-size:13.5px;resize:vertical;"></textarea>
       <div class="chart-grid" id="overallChartGrid"></div>
@@ -505,8 +505,23 @@ let HAS_UPLOADED_DATA = state.hasUploadedData || false;
 
 function renderOverallKpis(){
   const overallData = computeOverallData();
-  const last = overallData[overallData.length-1];
-  const prev = overallData[overallData.length-2];
+
+  // Only treat a month as "complete" for the headline snapshot if Branch, Branchless, AND Core
+  // all have an entry for it — otherwise a channel that's behind on uploads (e.g. Core has August
+  // but Branch/Branchless don't yet) would silently zero-fill and make that month look like a collapse.
+  const completeMonths = overallData.filter(r => {
+    const mi = monthIndexFromLabel(r.month);
+    return BRANCH.some(x => monthIndexFromLabel(x.month)===mi) &&
+           BRANCHLESS.some(x => monthIndexFromLabel(x.month)===mi) &&
+           CORE.some(x => monthIndexFromLabel(x.month)===mi);
+  });
+
+  const last = completeMonths[completeMonths.length-1] || overallData[overallData.length-1];
+  const prev = completeMonths[completeMonths.length-2];
+
+  document.getElementById('latestMonthLabel').textContent =
+    'Latest Complete Month (' + esc(last.month) + ') vs Prior Month';
+
   renderKpiDeltaStrip('overallKpiStrip', [
     {label:'Active Users', icon:'&#128101;', val: Number(last.users)||0, prevVal: prev?Number(prev.users):null, fmt: fmtNum},
     {label:'Transactions', icon:'&#128257;', val: Number(last.trxs)||0, prevVal: prev?Number(prev.trxs):null, fmt: fmtNum},
@@ -514,15 +529,20 @@ function renderOverallKpis(){
     {label:'Revenue', icon:'&#128176;', val: Number(last.revenue)||0, prevVal: prev?Number(prev.revenue):null, fmt: fmtNum},
   ]);
 
+  document.getElementById('cumulativeLabel').textContent =
+    completeMonths.length + ' Complete Month' + (completeMonths.length===1?'':'s') + ' Cumulative (Unique / Total)' +
+    (overallData.length > completeMonths.length ? ' — ' + (overallData.length - completeMonths.length) + ' more month(s) waiting on other channels' : '');
+
   const strip = document.getElementById('overallTotalStrip');
-  // Branch + Branchless + Core combined. Branch/Branchless share one identity system (ID_PAYER) so their
-  // portion is a true dedup; Core uses a separate account system with no shared key, so its users are
-  // simply added on top — this total may include some double-counting of anyone active in both systems.
+  // Only sum complete months, so an in-progress upload for one channel doesn't distort the total.
+  // Branch/Branchless share one identity system (ID_PAYER) so their portion is a true dedup;
+  // Core uses a separate account system with no shared key, so its users are simply added on top —
+  // this total may include some double-counting of anyone active in both systems.
   const t = {
-    trxs: overallData.reduce((s,r)=>s+(Number(r.trxs)||0),0),
-    amount: overallData.reduce((s,r)=>s+(Number(r.amount)||0),0),
-    revenue: overallData.reduce((s,r)=>s+(Number(r.revenue)||0),0),
-    users: overallData.reduce((s,r)=>s+(Number(r.users)||0),0),
+    trxs: completeMonths.reduce((s,r)=>s+(Number(r.trxs)||0),0),
+    amount: completeMonths.reduce((s,r)=>s+(Number(r.amount)||0),0),
+    revenue: completeMonths.reduce((s,r)=>s+(Number(r.revenue)||0),0),
+    users: completeMonths.reduce((s,r)=>s+(Number(r.users)||0),0),
   };
   const userLabel = 'Total Users';
   strip.innerHTML = [
