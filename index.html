@@ -105,6 +105,11 @@
   .two-col > *{min-width:0;}
   @media (max-width: 1100px){ .two-col{grid-template-columns:1fr;} }
 
+  .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+  .three-col > *{min-width:0;}
+  @media (max-width: 1300px){ .three-col{grid-template-columns:1fr 1fr;} }
+  @media (max-width: 800px){ .three-col{grid-template-columns:1fr;} }
+
   .bar-list .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
   .bar-list .bar-label{width:180px;flex-shrink:0;font-size:12.5px;color:var(--text);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;font-weight:600;}
@@ -188,6 +193,8 @@
   <button class="secondary" id="unlockBtn">&#128274; Unlock Editing</button>
   <button class="secondary edit-only" id="uploadMonthBtn">&#128228; Upload New Month's Data</button>
   <input type="file" id="uploadFileInput" accept=".xlsx,.xls" style="display:none">
+  <button class="secondary edit-only" id="uploadCoreBtn">&#128228; Upload Core Data</button>
+  <input type="file" id="uploadCoreFileInput" accept=".xlsx,.xls" style="display:none">
   <button class="secondary edit-only" id="publishBtn">Publish Updated Site</button>
   <button class="secondary" id="exportBtn">Export CSV</button>
   <button class="secondary edit-only" id="resetBtn">Reset to Original Data</button>
@@ -217,7 +224,7 @@
           <tfoot id="overallFoot"></tfoot>
         </table>
       </div>
-      <button class="secondary edit-only" style="margin-top:10px;padding:7px 14px;border-radius:7px;font-size:12.5px;" id="addOverallMonthBtn">+ Add Month</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;">This table is auto-calculated as Branch + Branchless + Core combined — edit those three tables below and this updates itself.</div>
     </div>
   </div>
 
@@ -225,13 +232,13 @@
     <div class="section-header" onclick="toggleSection('channelSection')">
       <span class="chevron">&#9660;</span>
       <span class="icon-badge">&#128272;</span>
-      <span class="title">Branch vs. Branchless Comparison</span>
-      <span class="subtitle">Web/USSD vs Mobile App</span>
+      <span class="title">Branch vs. Branchless vs. Core Comparison</span>
+      <span class="subtitle">Web/USSD vs Mobile App vs Core Banking</span>
     </div>
     <div class="section-body">
       <div class="chart-grid" id="comparisonChartGrid"></div>
 
-      <div class="two-col" style="margin-top:22px;">
+      <div class="three-col" style="margin-top:22px;">
         <div>
           <div class="sub-section-title"><span class="dot" style="background:var(--blue);"></span>Branchless (Mobile App) — Monthly</div>
           <div class="table-scroll">
@@ -249,6 +256,16 @@
               <thead><tr id="branchHeadRow"></tr></thead>
               <tbody id="branchBody"></tbody>
               <tfoot id="branchFoot"></tfoot>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="sub-section-title"><span class="dot" style="background:var(--purple);"></span>Core (Core Banking) — Monthly</div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr id="coreHeadRow"></tr></thead>
+              <tbody id="coreBody"></tbody>
+              <tfoot id="coreFoot"></tfoot>
             </table>
           </div>
         </div>
@@ -280,7 +297,7 @@
       </div>
 
       <div class="sub-section-title"><span class="dot" style="background:var(--amber);"></span>Branch (Web/USSD) — Top 8 Billers</div>
-      <div class="two-col">
+      <div class="two-col" style="margin-bottom:24px;">
         <div class="table-scroll">
           <table>
             <thead><tr><th>#</th><th>Prefix</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
@@ -288,6 +305,17 @@
           </table>
         </div>
         <div class="bar-list" id="billersBranchBarList"></div>
+      </div>
+
+      <div class="sub-section-title"><span class="dot" style="background:var(--purple);"></span>Core (Core Banking) — Top 8 Billers</div>
+      <div class="two-col">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Prefix</th><th>Users</th><th>Trxs</th><th>Amount</th><th>Ticket Size</th><th>Trx/User</th><th>User Spend</th><th>Revenue</th></tr></thead>
+            <tbody id="billersCoreBody"></tbody>
+          </table>
+        </div>
+        <div class="bar-list" id="billersCoreBarList"></div>
       </div>
     </div>
   </div>
@@ -337,7 +365,7 @@
 </div>
 
 <script>
-const ORIGINAL_STATE = /*STATE_START*/{"overall":[{"month":"Jan","users":1797,"trxs":8431,"amount":338079010.98,"revenue":78695.5,"ticketSize":40099.52,"trxPerUser":4.6917,"userSpend":188135.23},{"month":"Feb","users":1689,"trxs":8168,"amount":233606811.45,"revenue":73768.5,"ticketSize":28600.25,"trxPerUser":4.836,"userSpend":138310.72},{"month":"Mar","users":1686,"trxs":7994,"amount":359138804.51,"revenue":74695.0,"ticketSize":44926.05,"trxPerUser":4.7414,"userSpend":213012.34},{"month":"Apr","users":1670,"trxs":8199,"amount":544107632.48,"revenue":76970.0,"ticketSize":66362.68,"trxPerUser":4.9096,"userSpend":325812.95},{"month":"May","users":1649,"trxs":7831,"amount":419124928.69,"revenue":77302.5,"ticketSize":53521.25,"trxPerUser":4.7489,"userSpend":254169.15},{"month":"Jun","users":1704,"trxs":8212,"amount":895703475.38,"revenue":90713.75,"ticketSize":109072.51,"trxPerUser":4.8192,"userSpend":525647.58}],"branch":[{"month":"Jan","users":123,"trxs":3738,"amount":195377267.0,"revenue":32543.25,"ticketSize":52267.86,"trxPerUser":30.3902,"userSpend":1588433.07},{"month":"Feb","users":122,"trxs":3843,"amount":140427684.0,"revenue":33336.5,"ticketSize":36541.16,"trxPerUser":31.5,"userSpend":1151046.59},{"month":"Mar","users":116,"trxs":3520,"amount":230211846.0,"revenue":30495.0,"ticketSize":65401.09,"trxPerUser":30.3448,"userSpend":1984584.88},{"month":"Apr","users":127,"trxs":3671,"amount":405129112.0,"revenue":32980.75,"ticketSize":110359.33,"trxPerUser":28.9055,"userSpend":3189993.01},{"month":"May","users":121,"trxs":3458,"amount":223411380.0,"revenue":31836.5,"ticketSize":64607.11,"trxPerUser":28.5785,"userSpend":1846375.04},{"month":"Jun","users":124,"trxs":3697,"amount":677249219.0,"revenue":41368.0,"ticketSize":183188.86,"trxPerUser":29.8145,"userSpend":5461687.25}],"branchless":[{"month":"Jan","users":1674,"trxs":4693,"amount":142701743.98,"revenue":46152.25,"ticketSize":30407.36,"trxPerUser":2.8035,"userSpend":85245.96},{"month":"Feb","users":1568,"trxs":4325,"amount":93179127.45,"revenue":40432.0,"ticketSize":21544.31,"trxPerUser":2.7583,"userSpend":59425.46},{"month":"Mar","users":1572,"trxs":4474,"amount":128926958.51,"revenue":44200.0,"ticketSize":28816.93,"trxPerUser":2.8461,"userSpend":82014.6},{"month":"Apr","users":1544,"trxs":4528,"amount":138978520.48,"revenue":43989.25,"ticketSize":30693.14,"trxPerUser":2.9326,"userSpend":90012.0},{"month":"May","users":1529,"trxs":4373,"amount":195713548.69,"revenue":45466.0,"ticketSize":44754.98,"trxPerUser":2.86,"userSpend":128001.01},{"month":"Jun","users":1581,"trxs":4515,"amount":218454256.38,"revenue":49345.75,"ticketSize":48384.11,"trxPerUser":2.8558,"userSpend":138174.74}],"overallTotal":{"users":3871,"trxs":48835,"amount":2789760663.49,"revenue":472145.25,"ticketSize":57126.26,"trxPerUser":12.6156,"userSpend":720682.17},"branchTotal":{"users":194,"trxs":21927,"amount":1871806508.0,"revenue":202560.0,"ticketSize":85365.37,"trxPerUser":113.0258,"userSpend":9648487.15},"branchlessTotal":{"users":3679,"trxs":26908,"amount":917954155.49,"revenue":269585.25,"ticketSize":34114.54,"trxPerUser":7.3139,"userSpend":249511.87},"overallIntro":"","top10BillersBranch":[{"prefix":"PRAL0001","users":12,"trxs":90,"amount":599773781.0,"revenue":5598.75,"ticketSize":6664153.12,"trxPerUser":7.5,"userSpend":49981148.42},{"prefix":"GOP00001","users":2,"trxs":4,"amount":33498649.0,"revenue":812.5,"ticketSize":8374662.25,"trxPerUser":2.0,"userSpend":16749324.5},{"prefix":"LESCO001","users":26,"trxs":1003,"amount":13370871.0,"revenue":11000.5,"ticketSize":13330.88,"trxPerUser":38.5769,"userSpend":514264.27},{"prefix":"MEPCO001","users":41,"trxs":852,"amount":12724180.0,"revenue":8550.0,"ticketSize":14934.48,"trxPerUser":20.7805,"userSpend":310345.85},{"prefix":"GEPCO001","users":19,"trxs":751,"amount":8082573.0,"revenue":7937.5,"ticketSize":10762.41,"trxPerUser":39.5263,"userSpend":425398.58},{"prefix":"IN01BILL","users":16,"trxs":32,"amount":5778832.0,"revenue":718.0,"ticketSize":180588.5,"trxPerUser":2.0,"userSpend":361177.0},{"prefix":"SNGPL001","users":57,"trxs":677,"amount":1718550.0,"revenue":4546.0,"ticketSize":2538.48,"trxPerUser":11.8772,"userSpend":30150.0},{"prefix":"KESC0001","users":7,"trxs":18,"amount":1045682.0,"revenue":352.75,"ticketSize":58093.44,"trxPerUser":2.5714,"userSpend":149383.14}],"top10BillersBranchless":[{"prefix":"IN01BILL","users":134,"trxs":379,"amount":105000685.0,"revenue":5659.5,"ticketSize":277046.66,"trxPerUser":2.8284,"userSpend":783587.2},{"prefix":"PRAL0001","users":31,"trxs":175,"amount":39472586.0,"revenue":4988.0,"ticketSize":225557.63,"trxPerUser":5.6452,"userSpend":1273309.23},{"prefix":"GOP00001","users":18,"trxs":95,"amount":22350367.0,"revenue":1769.25,"ticketSize":235267.02,"trxPerUser":5.2778,"userSpend":1241687.06},{"prefix":"LESCO001","users":411,"trxs":899,"amount":16846999.0,"revenue":8859.0,"ticketSize":18739.71,"trxPerUser":2.1873,"userSpend":40990.27},{"prefix":"KESC0001","users":108,"trxs":235,"amount":9723243.0,"revenue":3172.75,"ticketSize":41375.5,"trxPerUser":2.1759,"userSpend":90030.03},{"prefix":"CC01BILL","users":150,"trxs":261,"amount":9519449.38,"revenue":4072.25,"ticketSize":36472.99,"trxPerUser":1.74,"userSpend":63463.0},{"prefix":"MEPCO001","users":342,"trxs":854,"amount":5336712.0,"revenue":7649.75,"ticketSize":6249.08,"trxPerUser":2.4971,"userSpend":15604.42},{"prefix":"IESCO001","users":106,"trxs":187,"amount":4070977.0,"revenue":2265.5,"ticketSize":21769.93,"trxPerUser":1.7642,"userSpend":38405.44}],"top10UsersBranch":[{"name":"SYSTEM SETTLEMENT ACCOUNT","users":1,"trxs":29,"amount":629502649.0,"revenue":5183.5,"ticketSize":21706987.9,"trxPerUser":29.0,"userSpend":629502649.0},{"name":"AMS CENTRAL SERVICES SMC PRIVATE LTD","users":1,"trxs":15,"amount":4487889.0,"revenue":508.5,"ticketSize":299192.6,"trxPerUser":15.0,"userSpend":4487889.0},{"name":"RUBAB SHABIR","users":1,"trxs":257,"amount":2709653.0,"revenue":2796.75,"ticketSize":10543.4,"trxPerUser":257.0,"userSpend":2709653.0},{"name":"SALMAN LIAQAT","users":1,"trxs":140,"amount":1997203.0,"revenue":1618.75,"ticketSize":14265.74,"trxPerUser":140.0,"userSpend":1997203.0},{"name":"AFAQ AHMAD","users":1,"trxs":111,"amount":1772963.0,"revenue":1354.25,"ticketSize":15972.64,"trxPerUser":111.0,"userSpend":1772963.0},{"name":"BILAL SHAFI","users":1,"trxs":83,"amount":1567015.0,"revenue":1052.25,"ticketSize":18879.7,"trxPerUser":83.0,"userSpend":1567015.0},{"name":"TALON SPORTS PVT LIMITED","users":1,"trxs":4,"amount":1422856.0,"revenue":164.0,"ticketSize":355714.0,"trxPerUser":4.0,"userSpend":1422856.0},{"name":"NIGHAT BANO","users":1,"trxs":194,"amount":1396011.0,"revenue":1944.75,"ticketSize":7195.93,"trxPerUser":194.0,"userSpend":1396011.0}],"top10UsersBranchless":[{"name":"FINJA LENDING SERVICES LTD","users":1,"trxs":238,"amount":127686394.0,"revenue":6640.5,"ticketSize":536497.45,"trxPerUser":238.0,"userSpend":127686394.0},{"name":"RINAS KITCHENETTE PVT LTD","users":1,"trxs":16,"amount":16578776.0,"revenue":810.5,"ticketSize":1036173.5,"trxPerUser":16.0,"userSpend":16578776.0},{"name":"RURAL COMMUNITY DEVELOPMENT PROGRAMMERS","users":1,"trxs":19,"amount":9932598.0,"revenue":838.0,"ticketSize":522768.32,"trxPerUser":19.0,"userSpend":9932598.0},{"name":"MSM SECURITY GUARDS PVT LIMITED","users":1,"trxs":11,"amount":9788267.0,"revenue":660.75,"ticketSize":889842.45,"trxPerUser":11.0,"userSpend":9788267.0},{"name":"WEBDOC PRIVATE LIMITED","users":1,"trxs":12,"amount":5244353.0,"revenue":525.5,"ticketSize":437029.42,"trxPerUser":12.0,"userSpend":5244353.0},{"name":"ARCO PLASTICS PVT LTD","users":1,"trxs":18,"amount":4193698.0,"revenue":523.75,"ticketSize":232983.22,"trxPerUser":18.0,"userSpend":4193698.0},{"name":"SHEZADA SECURITY SERVICES PVT LTD","users":1,"trxs":47,"amount":2922441.0,"revenue":767.5,"ticketSize":62179.6,"trxPerUser":47.0,"userSpend":2922441.0},{"name":"PARWEST PACIFIC SECURITY PVT LTD","users":1,"trxs":41,"amount":2746242.0,"revenue":786.5,"ticketSize":66981.51,"trxPerUser":41.0,"userSpend":2746242.0}],"top8Month":"June 2026","hasUploadedData":false}/*STATE_END*/;
+const ORIGINAL_STATE = /*STATE_START*/{"overall":[{"month":"Jan","users":1797,"trxs":8431,"amount":338079010.98,"revenue":78695.5,"ticketSize":40099.52,"trxPerUser":4.6917,"userSpend":188135.23},{"month":"Feb","users":1689,"trxs":8168,"amount":233606811.45,"revenue":73768.5,"ticketSize":28600.25,"trxPerUser":4.836,"userSpend":138310.72},{"month":"Mar","users":1686,"trxs":7994,"amount":359138804.51,"revenue":74695.0,"ticketSize":44926.05,"trxPerUser":4.7414,"userSpend":213012.34},{"month":"Apr","users":1670,"trxs":8199,"amount":544107632.48,"revenue":76970.0,"ticketSize":66362.68,"trxPerUser":4.9096,"userSpend":325812.95},{"month":"May","users":1649,"trxs":7831,"amount":419124928.69,"revenue":77302.5,"ticketSize":53521.25,"trxPerUser":4.7489,"userSpend":254169.15},{"month":"Jun","users":1704,"trxs":8212,"amount":895703475.38,"revenue":90713.75,"ticketSize":109072.51,"trxPerUser":4.8192,"userSpend":525647.58}],"branch":[{"month":"Jan","users":123,"trxs":3738,"amount":195377267.0,"revenue":32543.25,"ticketSize":52267.86,"trxPerUser":30.3902,"userSpend":1588433.07},{"month":"Feb","users":122,"trxs":3843,"amount":140427684.0,"revenue":33336.5,"ticketSize":36541.16,"trxPerUser":31.5,"userSpend":1151046.59},{"month":"Mar","users":116,"trxs":3520,"amount":230211846.0,"revenue":30495.0,"ticketSize":65401.09,"trxPerUser":30.3448,"userSpend":1984584.88},{"month":"Apr","users":127,"trxs":3671,"amount":405129112.0,"revenue":32980.75,"ticketSize":110359.33,"trxPerUser":28.9055,"userSpend":3189993.01},{"month":"May","users":121,"trxs":3458,"amount":223411380.0,"revenue":31836.5,"ticketSize":64607.11,"trxPerUser":28.5785,"userSpend":1846375.04},{"month":"Jun","users":124,"trxs":3697,"amount":677249219.0,"revenue":41368.0,"ticketSize":183188.86,"trxPerUser":29.8145,"userSpend":5461687.25}],"branchless":[{"month":"Jan","users":1674,"trxs":4693,"amount":142701743.98,"revenue":46152.25,"ticketSize":30407.36,"trxPerUser":2.8035,"userSpend":85245.96},{"month":"Feb","users":1568,"trxs":4325,"amount":93179127.45,"revenue":40432.0,"ticketSize":21544.31,"trxPerUser":2.7583,"userSpend":59425.46},{"month":"Mar","users":1572,"trxs":4474,"amount":128926958.51,"revenue":44200.0,"ticketSize":28816.93,"trxPerUser":2.8461,"userSpend":82014.6},{"month":"Apr","users":1544,"trxs":4528,"amount":138978520.48,"revenue":43989.25,"ticketSize":30693.14,"trxPerUser":2.9326,"userSpend":90012.0},{"month":"May","users":1529,"trxs":4373,"amount":195713548.69,"revenue":45466.0,"ticketSize":44754.98,"trxPerUser":2.86,"userSpend":128001.01},{"month":"Jun","users":1581,"trxs":4515,"amount":218454256.38,"revenue":49345.75,"ticketSize":48384.11,"trxPerUser":2.8558,"userSpend":138174.74}],"overallTotal":{"users":3871,"trxs":48835,"amount":2789760663.49,"revenue":472145.25,"ticketSize":57126.26,"trxPerUser":12.6156,"userSpend":720682.17},"branchTotal":{"users":194,"trxs":21927,"amount":1871806508.0,"revenue":202560.0,"ticketSize":85365.37,"trxPerUser":113.0258,"userSpend":9648487.15},"branchlessTotal":{"users":3679,"trxs":26908,"amount":917954155.49,"revenue":269585.25,"ticketSize":34114.54,"trxPerUser":7.3139,"userSpend":249511.87},"overallIntro":"","top10BillersBranch":[{"prefix":"PRAL0001","users":12,"trxs":90,"amount":599773781.0,"revenue":5598.75,"ticketSize":6664153.12,"trxPerUser":7.5,"userSpend":49981148.42},{"prefix":"GOP00001","users":2,"trxs":4,"amount":33498649.0,"revenue":812.5,"ticketSize":8374662.25,"trxPerUser":2.0,"userSpend":16749324.5},{"prefix":"LESCO001","users":26,"trxs":1003,"amount":13370871.0,"revenue":11000.5,"ticketSize":13330.88,"trxPerUser":38.5769,"userSpend":514264.27},{"prefix":"MEPCO001","users":41,"trxs":852,"amount":12724180.0,"revenue":8550.0,"ticketSize":14934.48,"trxPerUser":20.7805,"userSpend":310345.85},{"prefix":"GEPCO001","users":19,"trxs":751,"amount":8082573.0,"revenue":7937.5,"ticketSize":10762.41,"trxPerUser":39.5263,"userSpend":425398.58},{"prefix":"IN01BILL","users":16,"trxs":32,"amount":5778832.0,"revenue":718.0,"ticketSize":180588.5,"trxPerUser":2.0,"userSpend":361177.0},{"prefix":"SNGPL001","users":57,"trxs":677,"amount":1718550.0,"revenue":4546.0,"ticketSize":2538.48,"trxPerUser":11.8772,"userSpend":30150.0},{"prefix":"KESC0001","users":7,"trxs":18,"amount":1045682.0,"revenue":352.75,"ticketSize":58093.44,"trxPerUser":2.5714,"userSpend":149383.14}],"top10BillersBranchless":[{"prefix":"IN01BILL","users":134,"trxs":379,"amount":105000685.0,"revenue":5659.5,"ticketSize":277046.66,"trxPerUser":2.8284,"userSpend":783587.2},{"prefix":"PRAL0001","users":31,"trxs":175,"amount":39472586.0,"revenue":4988.0,"ticketSize":225557.63,"trxPerUser":5.6452,"userSpend":1273309.23},{"prefix":"GOP00001","users":18,"trxs":95,"amount":22350367.0,"revenue":1769.25,"ticketSize":235267.02,"trxPerUser":5.2778,"userSpend":1241687.06},{"prefix":"LESCO001","users":411,"trxs":899,"amount":16846999.0,"revenue":8859.0,"ticketSize":18739.71,"trxPerUser":2.1873,"userSpend":40990.27},{"prefix":"KESC0001","users":108,"trxs":235,"amount":9723243.0,"revenue":3172.75,"ticketSize":41375.5,"trxPerUser":2.1759,"userSpend":90030.03},{"prefix":"CC01BILL","users":150,"trxs":261,"amount":9519449.38,"revenue":4072.25,"ticketSize":36472.99,"trxPerUser":1.74,"userSpend":63463.0},{"prefix":"MEPCO001","users":342,"trxs":854,"amount":5336712.0,"revenue":7649.75,"ticketSize":6249.08,"trxPerUser":2.4971,"userSpend":15604.42},{"prefix":"IESCO001","users":106,"trxs":187,"amount":4070977.0,"revenue":2265.5,"ticketSize":21769.93,"trxPerUser":1.7642,"userSpend":38405.44}],"top10UsersBranch":[{"name":"SYSTEM SETTLEMENT ACCOUNT","users":1,"trxs":29,"amount":629502649.0,"revenue":5183.5,"ticketSize":21706987.9,"trxPerUser":29.0,"userSpend":629502649.0},{"name":"AMS CENTRAL SERVICES SMC PRIVATE LTD","users":1,"trxs":15,"amount":4487889.0,"revenue":508.5,"ticketSize":299192.6,"trxPerUser":15.0,"userSpend":4487889.0},{"name":"RUBAB SHABIR","users":1,"trxs":257,"amount":2709653.0,"revenue":2796.75,"ticketSize":10543.4,"trxPerUser":257.0,"userSpend":2709653.0},{"name":"SALMAN LIAQAT","users":1,"trxs":140,"amount":1997203.0,"revenue":1618.75,"ticketSize":14265.74,"trxPerUser":140.0,"userSpend":1997203.0},{"name":"AFAQ AHMAD","users":1,"trxs":111,"amount":1772963.0,"revenue":1354.25,"ticketSize":15972.64,"trxPerUser":111.0,"userSpend":1772963.0},{"name":"BILAL SHAFI","users":1,"trxs":83,"amount":1567015.0,"revenue":1052.25,"ticketSize":18879.7,"trxPerUser":83.0,"userSpend":1567015.0},{"name":"TALON SPORTS PVT LIMITED","users":1,"trxs":4,"amount":1422856.0,"revenue":164.0,"ticketSize":355714.0,"trxPerUser":4.0,"userSpend":1422856.0},{"name":"NIGHAT BANO","users":1,"trxs":194,"amount":1396011.0,"revenue":1944.75,"ticketSize":7195.93,"trxPerUser":194.0,"userSpend":1396011.0}],"top10UsersBranchless":[{"name":"FINJA LENDING SERVICES LTD","users":1,"trxs":238,"amount":127686394.0,"revenue":6640.5,"ticketSize":536497.45,"trxPerUser":238.0,"userSpend":127686394.0},{"name":"RINAS KITCHENETTE PVT LTD","users":1,"trxs":16,"amount":16578776.0,"revenue":810.5,"ticketSize":1036173.5,"trxPerUser":16.0,"userSpend":16578776.0},{"name":"RURAL COMMUNITY DEVELOPMENT PROGRAMMERS","users":1,"trxs":19,"amount":9932598.0,"revenue":838.0,"ticketSize":522768.32,"trxPerUser":19.0,"userSpend":9932598.0},{"name":"MSM SECURITY GUARDS PVT LIMITED","users":1,"trxs":11,"amount":9788267.0,"revenue":660.75,"ticketSize":889842.45,"trxPerUser":11.0,"userSpend":9788267.0},{"name":"WEBDOC PRIVATE LIMITED","users":1,"trxs":12,"amount":5244353.0,"revenue":525.5,"ticketSize":437029.42,"trxPerUser":12.0,"userSpend":5244353.0},{"name":"ARCO PLASTICS PVT LTD","users":1,"trxs":18,"amount":4193698.0,"revenue":523.75,"ticketSize":232983.22,"trxPerUser":18.0,"userSpend":4193698.0},{"name":"SHEZADA SECURITY SERVICES PVT LTD","users":1,"trxs":47,"amount":2922441.0,"revenue":767.5,"ticketSize":62179.6,"trxPerUser":47.0,"userSpend":2922441.0},{"name":"PARWEST PACIFIC SECURITY PVT LTD","users":1,"trxs":41,"amount":2746242.0,"revenue":786.5,"ticketSize":66981.51,"trxPerUser":41.0,"userSpend":2746242.0}],"top8Month":"June 2026","hasUploadedData":false,"core":[{"month":"Jan","users":369,"trxs":983,"amount":14312020.85,"revenue":9477.25,"ticketSize":14559.53,"trxPerUser":2.664,"userSpend":38785.96},{"month":"Feb","users":367,"trxs":827,"amount":10493538.69,"revenue":8263.0,"ticketSize":12688.68,"trxPerUser":2.2534,"userSpend":28592.75},{"month":"Mar","users":335,"trxs":807,"amount":10756996.11,"revenue":7884.25,"ticketSize":13329.61,"trxPerUser":2.409,"userSpend":32110.44},{"month":"Apr","users":358,"trxs":888,"amount":14004758.91,"revenue":8978.5,"ticketSize":15771.12,"trxPerUser":2.4804,"userSpend":39119.44},{"month":"May","users":457,"trxs":1053,"amount":13169280.59,"revenue":9457.5,"ticketSize":12506.44,"trxPerUser":2.3042,"userSpend":28816.81},{"month":"Jun","users":492,"trxs":1262,"amount":15743817.44,"revenue":11793.75,"ticketSize":12475.29,"trxPerUser":2.565,"userSpend":31999.63}],"top8BillersCore":[{"prefix":"CC01BILL","users":80,"trxs":115,"amount":7952390.44,"revenue":2112.25,"ticketSize":69151.22,"trxPerUser":1.4375,"userSpend":99404.88},{"prefix":"IN01BILL","users":41,"trxs":69,"amount":2510919.0,"revenue":963.25,"ticketSize":36390.13,"trxPerUser":1.6829,"userSpend":61241.93},{"prefix":"LESCO001","users":70,"trxs":225,"amount":1965730.0,"revenue":2270.75,"ticketSize":8736.58,"trxPerUser":3.2143,"userSpend":28081.86},{"prefix":"MEPCO001","users":68,"trxs":156,"amount":1818429.0,"revenue":1616.25,"ticketSize":11656.6,"trxPerUser":2.2941,"userSpend":26741.6},{"prefix":"GEPCO001","users":31,"trxs":69,"amount":391218.0,"revenue":639.0,"ticketSize":5669.83,"trxPerUser":2.2258,"userSpend":12619.94},{"prefix":"KESC0001","users":14,"trxs":16,"amount":266826.0,"revenue":245.75,"ticketSize":16676.62,"trxPerUser":1.1429,"userSpend":19059.0},{"prefix":"SNGPL001","users":72,"trxs":118,"amount":254930.0,"revenue":789.25,"ticketSize":2160.42,"trxPerUser":1.6389,"userSpend":3540.69},{"prefix":"PTCL0010","users":30,"trxs":36,"amount":166230.0,"revenue":247.5,"ticketSize":4617.5,"trxPerUser":1.2,"userSpend":5541.0}],"coreTotal":{"users":1073,"trxs":5820,"amount":78480412.59,"revenue":55854.25,"ticketSize":13484.61,"trxPerUser":5.424,"userSpend":73141.11}}/*STATE_END*/;
 const STORAGE_KEY = 'channelBillerReport_v1';
 const EDIT_PASSWORD = 'abhi2026';
 const EDIT_UNLOCK_KEY = 'channelReportEditUnlocked';
@@ -377,20 +405,22 @@ function loadState(){
 }
 function saveState(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    overall: OVERALL, branch: BRANCH, branchless: BRANCHLESS,
+    branch: BRANCH, branchless: BRANCHLESS,
     overallTotal: ORIGINAL_STATE.overallTotal, branchTotal: ORIGINAL_STATE.branchTotal, branchlessTotal: ORIGINAL_STATE.branchlessTotal,
     top10BillersBranch: TOP10_BILLERS_BRANCH, top10BillersBranchless: TOP10_BILLERS_BRANCHLESS,
+    core: CORE, top8BillersCore: TOP8_BILLERS_CORE,
     top10UsersBranch: TOP10_USERS_BRANCH, top10UsersBranchless: TOP10_USERS_BRANCHLESS,
     overallIntro: OVERALL_INTRO, top8Month: TOP8_MONTH, hasUploadedData: HAS_UPLOADED_DATA
   }));
 }
 
 let state = loadState();
-let OVERALL = state.overall;
 let BRANCH = state.branch;
 let BRANCHLESS = state.branchless;
+let CORE = state.core || [];
 let TOP10_BILLERS_BRANCH = state.top10BillersBranch;
 let TOP10_BILLERS_BRANCHLESS = state.top10BillersBranchless;
+let TOP8_BILLERS_CORE = state.top8BillersCore || [];
 let TOP10_USERS_BRANCH = state.top10UsersBranch;
 let TOP10_USERS_BRANCHLESS = state.top10UsersBranchless;
 let OVERALL_INTRO = state.overallIntro;
@@ -474,8 +504,9 @@ function renderKpiDeltaStrip(containerId, tiles){
 let HAS_UPLOADED_DATA = state.hasUploadedData || false;
 
 function renderOverallKpis(){
-  const last = OVERALL[OVERALL.length-1];
-  const prev = OVERALL[OVERALL.length-2];
+  const overallData = computeOverallData();
+  const last = overallData[overallData.length-1];
+  const prev = overallData[overallData.length-2];
   renderKpiDeltaStrip('overallKpiStrip', [
     {label:'Active Users', icon:'&#128101;', val: Number(last.users)||0, prevVal: prev?Number(prev.users):null, fmt: fmtNum},
     {label:'Transactions', icon:'&#128257;', val: Number(last.trxs)||0, prevVal: prev?Number(prev.trxs):null, fmt: fmtNum},
@@ -484,23 +515,16 @@ function renderOverallKpis(){
   ]);
 
   const strip = document.getElementById('overallTotalStrip');
-  let userLabel = 'Unique Users (H1)';
-  let t;
-  if(!HAS_UPLOADED_DATA){
-    // Still exactly the original, precisely-deduplicated Jan–Jun baseline computed from raw data
-    t = ORIGINAL_STATE.overallTotal;
-  } else {
-    // New month(s) uploaded: trxs/amount/revenue can be summed accurately across months,
-    // but a true cross-month deduplicated user count needs the original transaction-level data,
-    // which isn't available in the browser — so this becomes an approximate sum instead.
-    t = {
-      trxs: OVERALL.reduce((s,r)=>s+(Number(r.trxs)||0),0),
-      amount: OVERALL.reduce((s,r)=>s+(Number(r.amount)||0),0),
-      revenue: OVERALL.reduce((s,r)=>s+(Number(r.revenue)||0),0),
-      users: OVERALL.reduce((s,r)=>s+(Number(r.users)||0),0),
-    };
-    userLabel = 'Total Users (approx., not deduped across months)';
-  }
+  // Branch + Branchless + Core combined. Branch/Branchless share one identity system (ID_PAYER) so their
+  // portion is a true dedup; Core uses a separate account system with no shared key, so its users are
+  // simply added on top — this total may include some double-counting of anyone active in both systems.
+  const t = {
+    trxs: overallData.reduce((s,r)=>s+(Number(r.trxs)||0),0),
+    amount: overallData.reduce((s,r)=>s+(Number(r.amount)||0),0),
+    revenue: overallData.reduce((s,r)=>s+(Number(r.revenue)||0),0),
+    users: overallData.reduce((s,r)=>s+(Number(r.users)||0),0),
+  };
+  const userLabel = 'Total Users';
   strip.innerHTML = [
     {label:userLabel, icon:'&#128101;', val: t.users, fmt: fmtNum},
     {label:'Total Transactions', icon:'&#128257;', val: t.trxs, fmt: fmtNum},
@@ -525,7 +549,7 @@ function tableCols(){
   ];
 }
 
-function renderMonthlyTable(dataArr, headId, bodyId, footId, onDataChange){
+function renderMonthlyTable(dataArr, headId, bodyId, footId, onDataChange, readOnly){
   const head = document.getElementById(headId);
   let headHtml = '';
   tableCols().forEach(c => headHtml += `<th>${esc(c.label)}</th>`);
@@ -536,11 +560,19 @@ function renderMonthlyTable(dataArr, headId, bodyId, footId, onDataChange){
   body.innerHTML = dataArr.map((row, i) => {
     const d = computeDerived(row);
     let r = '<tr>';
-    r += `<td><input class="cell-input month-input" data-idx="${i}" data-field="month" value="${esc(row.month)}"></td>`;
-    r += `<td><input class="cell-input" type="number" data-idx="${i}" data-field="users" value="${row.users}"></td>`;
-    r += `<td><input class="cell-input" type="number" data-idx="${i}" data-field="trxs" value="${row.trxs}"></td>`;
-    r += `<td><input class="cell-input" type="number" step="0.01" data-idx="${i}" data-field="amount" value="${row.amount}"></td>`;
-    r += `<td><input class="cell-input" type="number" step="0.01" data-idx="${i}" data-field="revenue" value="${row.revenue}"></td>`;
+    if(readOnly){
+      r += `<td style="font-weight:600;">${esc(row.month)}</td>`;
+      r += `<td>${fmtNum(row.users)}</td>`;
+      r += `<td>${fmtNum(row.trxs)}</td>`;
+      r += `<td>${fmtMoney(row.amount)}</td>`;
+      r += `<td>${fmtNum(row.revenue)}</td>`;
+    } else {
+      r += `<td><input class="cell-input month-input" data-idx="${i}" data-field="month" value="${esc(row.month)}"></td>`;
+      r += `<td><input class="cell-input" type="number" data-idx="${i}" data-field="users" value="${row.users}"></td>`;
+      r += `<td><input class="cell-input" type="number" data-idx="${i}" data-field="trxs" value="${row.trxs}"></td>`;
+      r += `<td><input class="cell-input" type="number" step="0.01" data-idx="${i}" data-field="amount" value="${row.amount}"></td>`;
+      r += `<td><input class="cell-input" type="number" step="0.01" data-idx="${i}" data-field="revenue" value="${row.revenue}"></td>`;
+    }
     r += `<td class="computed">${fmtMoney(d.ticketSize)}</td>`;
     r += `<td class="computed">${d.trxPerUser.toFixed(2)}</td>`;
     r += `<td class="computed">${fmtMoney(d.userSpend)}</td>`;
@@ -550,18 +582,20 @@ function renderMonthlyTable(dataArr, headId, bodyId, footId, onDataChange){
 
   renderMonthlyFoot(dataArr, footId);
 
-  body.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', () => {
-      const idx = Number(inp.dataset.idx);
-      const field = inp.dataset.field;
-      let val = inp.value;
-      if(field !== 'month') val = val === '' ? 0 : Number(val);
-      dataArr[idx][field] = val;
-      saveState();
-      refreshComputedOnly(dataArr, bodyId, footId);
-      onDataChange && onDataChange();
+  if(!readOnly){
+    body.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const idx = Number(inp.dataset.idx);
+        const field = inp.dataset.field;
+        let val = inp.value;
+        if(field !== 'month') val = val === '' ? 0 : Number(val);
+        dataArr[idx][field] = val;
+        saveState();
+        refreshComputedOnly(dataArr, bodyId, footId);
+        onDataChange && onDataChange();
+      });
     });
-  });
+  }
 }
 
 function renderMonthlyFoot(dataArr, footId){
@@ -588,12 +622,6 @@ function refreshComputedOnly(dataArr, bodyId, footId){
   });
   renderMonthlyFoot(dataArr, footId);
 }
-
-document.getElementById('addOverallMonthBtn').addEventListener('click', () => {
-  OVERALL.push({month:'New', users:0, trxs:0, amount:0, revenue:0});
-  saveState();
-  renderOverallAll();
-});
 
 // ==================== Charts ====================
 function lineChart(labels, values, color, fmt, keyId){
@@ -647,11 +675,12 @@ function lineChart(labels, values, color, fmt, keyId){
 }
 
 // Dual-line comparison chart (Branch vs Branchless), no data labels (would clutter with 2 series), light legend externally
-function dualLineChart(labels, valuesA, valuesB, colorA, colorB, fmt){
+function multiLineChart(labels, series, fmt){
+  // series: [{values, color, dash: '6,3' or null}, ...]
   const W = 340, H = 190;
   const padL = 46, padR = 16, padT = 36, padB = 34;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const all = [...valuesA, ...valuesB];
+  const all = series.flatMap(s => s.values);
   const maxV = Math.max(...all, 0), minV = Math.min(...all, 0);
   const range = (maxV-minV) || Math.abs(maxV) || 1;
   let yMax = maxV + range*0.18, yMin = minV - range*0.18;
@@ -667,7 +696,7 @@ function dualLineChart(labels, valuesA, valuesB, colorA, colorB, fmt){
     });
     return {pts, path: pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')};
   }
-  const A = buildPath(valuesA), B = buildPath(valuesB);
+  const built = series.map(s => Object.assign({}, s, buildPath(s.values)));
 
   const gridVals = [yMin, (yMin+yMax)/2, yMax];
   const gridLines = gridVals.map(v => {
@@ -679,31 +708,30 @@ function dualLineChart(labels, valuesA, valuesB, colorA, colorB, fmt){
     const x = padL + i*stepX;
     return `<text x="${x.toFixed(1)}" y="${H-8}" font-size="9.5" fill="#6B7280" text-anchor="middle">${esc(lab)}</text>`;
   }).join('');
-  const dotsA = A.pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${colorA}" stroke="#fff" stroke-width="1.4"/>`).join('');
-  const dotsB = B.pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${colorB}" stroke="#fff" stroke-width="1.4"/>`).join('');
 
-  const MIN_LABEL_GAP = 14;
-  const labelYA = [], labelYB = [];
-  for(let i=0;i<A.pts.length;i++){
-    let ya = A.pts[i][1] - 8;
-    let yb = B.pts[i][1] - 8;
-    if(Math.abs(ya - yb) < MIN_LABEL_GAP){
-      const mid = (ya + yb) / 2;
-      if(ya <= yb){ ya = mid - MIN_LABEL_GAP/2; yb = mid + MIN_LABEL_GAP/2; }
-      else{ yb = mid - MIN_LABEL_GAP/2; ya = mid + MIN_LABEL_GAP/2; }
+  const MIN_LABEL_GAP = 13;
+  // For each x-index, compute default label Y per series, then push apart to maintain min gap
+  const labelYPerSeries = built.map(() => []);
+  for(let i=0;i<labels.length;i++){
+    const order = built.map((s, si) => ({si, y: s.pts[i][1] - 8})).sort((a,b) => a.y - b.y);
+    for(let k=1;k<order.length;k++){
+      if(order[k].y - order[k-1].y < MIN_LABEL_GAP) order[k].y = order[k-1].y + MIN_LABEL_GAP;
     }
-    labelYA.push(ya); labelYB.push(yb);
+    order.forEach(o => { labelYPerSeries[o.si][i] = o.y; });
   }
-  const labelsA = A.pts.map((p,i) => `<text x="${p[0].toFixed(1)}" y="${labelYA[i].toFixed(1)}" font-size="8.5" fill="${colorA}" text-anchor="middle" font-weight="700">${fmt(valuesA[i])}</text>`).join('');
-  const labelsB = B.pts.map((p,i) => `<text x="${p[0].toFixed(1)}" y="${labelYB[i].toFixed(1)}" font-size="8.5" fill="${colorB}" text-anchor="middle" font-weight="700">${fmt(valuesB[i])}</text>`).join('');
+
+  let dotsHtml = '', pathsHtml = '', labelsHtml = '';
+  built.forEach((s, si) => {
+    pathsHtml += `<path d="${s.path}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''}/>`;
+    dotsHtml += s.pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${s.color}" stroke="#fff" stroke-width="1.4"/>`).join('');
+    labelsHtml += s.pts.map((p,i) => `<text x="${p[0].toFixed(1)}" y="${labelYPerSeries[si][i].toFixed(1)}" font-size="8.5" fill="${s.color}" text-anchor="middle" font-weight="700">${fmt(s.values[i])}</text>`).join('');
+  });
 
   return `<svg viewBox="0 0 ${W} ${H}">
     ${gridLines}
     <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="#D9DDE3" stroke-width="1"/>
     <line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="#D9DDE3" stroke-width="1"/>
-    <path d="${A.path}" fill="none" stroke="${colorA}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
-    <path d="${B.path}" fill="none" stroke="${colorB}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="6,3"/>
-    ${dotsA}${dotsB}${labelsA}${labelsB}${xLabels}
+    ${pathsHtml}${dotsHtml}${labelsHtml}${xLabels}
   </svg>`;
 }
 
@@ -733,21 +761,60 @@ function renderChartGrid(containerId, dataArr){
   }).join('');
 }
 
+function unionMonthLabels(...arrays){
+  const seen = new Map(); // monthIndex -> label
+  arrays.forEach(arr => arr.forEach(r => {
+    const mi = monthIndexFromLabel(r.month);
+    if(mi >= 0 && !seen.has(mi)) seen.set(mi, r.month);
+  }));
+  return [...seen.entries()].sort((a,b)=>a[0]-b[0]).map(([mi,label]) => ({mi, label}));
+}
+
+function alignValues(dataArr, canonical, getVal){
+  return canonical.map(c => {
+    const row = dataArr.find(r => monthIndexFromLabel(r.month) === c.mi);
+    return row ? getVal(row, computeDerived(row)) : 0;
+  });
+}
+
+// Overall Portfolio = Branch + Branchless + Core, always freshly computed so it can never fall out of sync
+function computeOverallData(){
+  const canonical = unionMonthLabels(BRANCH, BRANCHLESS, CORE);
+  return canonical.map(c => {
+    const b = BRANCH.find(r => monthIndexFromLabel(r.month) === c.mi);
+    const bl = BRANCHLESS.find(r => monthIndexFromLabel(r.month) === c.mi);
+    const co = CORE.find(r => monthIndexFromLabel(r.month) === c.mi);
+    const users = (b?Number(b.users):0) + (bl?Number(bl.users):0) + (co?Number(co.users):0);
+    const trxs = (b?Number(b.trxs):0) + (bl?Number(bl.trxs):0) + (co?Number(co.trxs):0);
+    const amount = (b?Number(b.amount):0) + (bl?Number(bl.amount):0) + (co?Number(co.amount):0);
+    const revenue = (b?Number(b.revenue):0) + (bl?Number(bl.revenue):0) + (co?Number(co.revenue):0);
+    return {month: c.label, users, trxs, amount: Math.round(amount*100)/100, revenue: Math.round(revenue*100)/100};
+  });
+}
+
 function renderComparisonCharts(){
-  const labels = BRANCHLESS.map(r=>r.month);
+  const canonical = unionMonthLabels(BRANCHLESS, BRANCH, CORE);
+  const labels = canonical.map(c => c.label);
   const grid = document.getElementById('comparisonChartGrid');
-  const colorBranchless = '#2E5FD9', colorBranch = '#B4791E';
+  const colorBranchless = '#2E5FD9', colorBranch = '#B4791E', colorCore = '#7C4FC7';
   grid.innerHTML = METRIC_DEFS.map(def => {
-    const valsLess = BRANCHLESS.map(r => def.getVal(r, computeDerived(r)));
-    const valsBranch = BRANCH.map(r => def.getVal(r, computeDerived(r)));
+    const valsLess = alignValues(BRANCHLESS, canonical, def.getVal);
+    const valsBranch = alignValues(BRANCH, canonical, def.getVal);
+    const valsCore = alignValues(CORE, canonical, def.getVal);
+    const series = [
+      {values: valsLess, color: colorBranchless, dash: null},
+      {values: valsBranch, color: colorBranch, dash: '6,3'},
+      {values: valsCore, color: colorCore, dash: '2,3'},
+    ];
     return `
       <div class="chart-card" style="--accent:${colorBranchless}">
         <div class="chart-title"><span class="chart-icon">${def.icon}</span>${esc(def.label)}</div>
-        <div class="chart-latest">Solid = Branchless &middot; Dashed = Branch</div>
-        ${dualLineChart(labels, valsLess, valsBranch, colorBranchless, colorBranch, def.fmt)}
+        <div class="chart-latest">Solid = Branchless &middot; Dashed = Branch &middot; Dotted = Core</div>
+        ${multiLineChart(labels, series, def.fmt)}
         <div class="chart-legend">
           <span><span class="sw" style="background:${colorBranchless}"></span>Branchless</span>
           <span><span class="sw" style="background:${colorBranch}"></span>Branch</span>
+          <span><span class="sw" style="background:${colorCore}"></span>Core</span>
         </div>
       </div>`;
   }).join('');
@@ -787,8 +854,9 @@ function renderTop10(bodyId, barListId, dataArr, labelKey, colorTop){
 document.getElementById('resetBtn').addEventListener('click', () => {
   if(confirm('This will discard all edits and restore the original computed data. Continue?')){
     const fresh = JSON.parse(JSON.stringify(ORIGINAL_STATE));
-    OVERALL = fresh.overall; BRANCH = fresh.branch; BRANCHLESS = fresh.branchless;
+    BRANCH = fresh.branch; BRANCHLESS = fresh.branchless; CORE = fresh.core || [];
     TOP10_BILLERS_BRANCH = fresh.top10BillersBranch; TOP10_BILLERS_BRANCHLESS = fresh.top10BillersBranchless;
+    TOP8_BILLERS_CORE = fresh.top8BillersCore || [];
     TOP10_USERS_BRANCH = fresh.top10UsersBranch; TOP10_USERS_BRANCHLESS = fresh.top10UsersBranchless;
     OVERALL_INTRO = fresh.overallIntro; TOP8_MONTH = fresh.top8Month || 'June 2026'; HAS_UPLOADED_DATA = false;
     saveState();
@@ -808,9 +876,10 @@ document.getElementById('exportBtn').addEventListener('click', () => {
         .map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','));
     });
   }
-  addSection('Overall Portfolio', OVERALL);
+  addSection('Overall Portfolio', computeOverallData());
   addSection('Branchless (Mobile App)', BRANCHLESS);
   addSection('Branch (Web/USSD)', BRANCH);
+  addSection('Core (Core Banking)', CORE);
 
   function addTop10(title, arr, labelKey, labelHeader){
     rows.push('');
@@ -824,6 +893,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   }
   addTop10('Top 8 Billers - Branchless (June)', TOP10_BILLERS_BRANCHLESS, 'prefix', 'Prefix');
   addTop10('Top 8 Billers - Branch (June)', TOP10_BILLERS_BRANCH, 'prefix', 'Prefix');
+  addTop10('Top 8 Billers - Core (June)', TOP8_BILLERS_CORE, 'prefix', 'Prefix');
   addTop10('Top 8 Users - Branchless (June)', TOP10_USERS_BRANCHLESS, 'name', 'Name');
   addTop10('Top 8 Users - Branch (June)', TOP10_USERS_BRANCH, 'name', 'Name');
 
@@ -839,9 +909,10 @@ document.getElementById('publishBtn').addEventListener('click', () => {
   if(!confirm('This downloads a new index.html with all current data baked in as the new baseline.\n\nRe-upload this file to your host (replacing index.html) to make everything visible to everyone.\n\nContinue?')) return;
 
   const newState = {
-    overall: OVERALL, branch: BRANCH, branchless: BRANCHLESS,
+    branch: BRANCH, branchless: BRANCHLESS,
     overallTotal: ORIGINAL_STATE.overallTotal, branchTotal: ORIGINAL_STATE.branchTotal, branchlessTotal: ORIGINAL_STATE.branchlessTotal,
     top10BillersBranch: TOP10_BILLERS_BRANCH, top10BillersBranchless: TOP10_BILLERS_BRANCHLESS,
+    core: CORE, top8BillersCore: TOP8_BILLERS_CORE,
     top10UsersBranch: TOP10_USERS_BRANCH, top10UsersBranchless: TOP10_USERS_BRANCHLESS,
     overallIntro: OVERALL_INTRO, top8Month: TOP8_MONTH, hasUploadedData: HAS_UPLOADED_DATA
   };
@@ -863,15 +934,18 @@ function renderOverallAll(){
   const introEl = document.getElementById('overallIntro');
   introEl.value = OVERALL_INTRO;
   autoSize(introEl);
-  renderChartGrid('overallChartGrid', OVERALL);
-  renderMonthlyTable(OVERALL, 'overallHeadRow', 'overallBody', 'overallFoot', () => renderChartGrid('overallChartGrid', OVERALL));
+  const overallData = computeOverallData();
+  renderChartGrid('overallChartGrid', overallData);
+  renderMonthlyTable(overallData, 'overallHeadRow', 'overallBody', 'overallFoot', null, true);
 }
 document.getElementById('overallIntro').addEventListener('input', function(){ OVERALL_INTRO = this.value; autoSize(this); saveState(); });
 
 function renderChannelAll(){
   renderComparisonCharts();
-  renderMonthlyTable(BRANCHLESS, 'branchlessHeadRow', 'branchlessBody', 'branchlessFoot', renderComparisonCharts);
-  renderMonthlyTable(BRANCH, 'branchHeadRow', 'branchBody', 'branchFoot', renderComparisonCharts);
+  const onEdit = () => { renderComparisonCharts(); renderOverallAll(); };
+  renderMonthlyTable(BRANCHLESS, 'branchlessHeadRow', 'branchlessBody', 'branchlessFoot', onEdit);
+  renderMonthlyTable(BRANCH, 'branchHeadRow', 'branchBody', 'branchFoot', onEdit);
+  renderMonthlyTable(CORE, 'coreHeadRow', 'coreBody', 'coreFoot', onEdit);
 }
 
 function renderAll(){
@@ -879,6 +953,7 @@ function renderAll(){
   renderChannelAll();
   renderTop10('billersBranchlessBody', 'billersBranchlessBarList', TOP10_BILLERS_BRANCHLESS, 'prefix', '#2E5FD9');
   renderTop10('billersBranchBody', 'billersBranchBarList', TOP10_BILLERS_BRANCH, 'prefix', '#B4791E');
+  renderTop10('billersCoreBody', 'billersCoreBarList', TOP8_BILLERS_CORE, 'prefix', '#7C4FC7');
   renderTop10('usersBranchlessBody', 'usersBranchlessBarList', TOP10_USERS_BRANCHLESS, 'name', '#2E5FD9');
   renderTop10('usersBranchBody', 'usersBranchBarList', TOP10_USERS_BRANCH, 'name', '#B4791E');
   renderTop8MonthInputs();
@@ -946,6 +1021,38 @@ function aggFromRows(rows){
   return {
     users, trxs, amount: Math.round(amount*100)/100, revenue: Math.round(revenue*100)/100,
   };
+}
+
+// Core uses a different rule: Account_No for unique users, and every row counts as one transaction
+function aggFromRowsCore(rows){
+  const userSet = new Set();
+  let amount = 0, revenue = 0;
+  rows.forEach(r => {
+    userSet.add(r.ACCOUNT_NO);
+    amount += r.AMOUNT;
+    revenue += slabFee(r.AMOUNT) / 2;
+  });
+  const users = userSet.size, trxs = rows.length;
+  return {
+    users, trxs, amount: Math.round(amount*100)/100, revenue: Math.round(revenue*100)/100,
+  };
+}
+
+function top8FromRowsCore(rows, groupField, labelKey){
+  const groups = {};
+  rows.forEach(r => {
+    const key = groupField(r);
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  const totals = Object.entries(groups).map(([key, grp]) => ({ key, grp, amount: grp.reduce((s,r)=>s+r.AMOUNT,0) }));
+  totals.sort((a,b) => b.amount - a.amount);
+  return totals.slice(0,8).map(t => {
+    const a = aggFromRowsCore(t.grp);
+    const row = {}; row[labelKey] = t.key;
+    row.users = a.users; row.trxs = a.trxs; row.amount = a.amount; row.revenue = a.revenue;
+    return row;
+  });
 }
 
 function upsertMonthRow(arr, monthIdx, newRow){
@@ -1020,14 +1127,12 @@ document.getElementById('uploadFileInput').addEventListener('change', function(e
       const latestMonthIdx = monthIndices[monthIndices.length-1];
       const latestYear = byMonth[latestMonthIdx][0].DATE.getFullYear();
 
-      // Upsert monthly Overall / Branch / Branchless for every month found in the upload
+      // Upsert monthly Branch / Branchless for every month found in the upload (Overall is auto-derived)
       monthIndices.forEach(mi => {
         const monthRows = byMonth[mi];
         const label = MONTH_ABBR[mi];
-        const overallAgg = aggFromRows(monthRows);
         const branchAgg = aggFromRows(monthRows.filter(r => r.CHANNEL === 'Branch'));
         const branchlessAgg = aggFromRows(monthRows.filter(r => r.CHANNEL === 'Branchless'));
-        upsertMonthRow(OVERALL, mi, Object.assign({month: label}, overallAgg));
         upsertMonthRow(BRANCH, mi, Object.assign({month: label}, branchAgg));
         upsertMonthRow(BRANCHLESS, mi, Object.assign({month: label}, branchlessAgg));
       });
@@ -1055,6 +1160,85 @@ document.getElementById('uploadFileInput').addEventListener('change', function(e
   reader.onerror = function(){
     showUploadBanner('error', '&#10060; Could not read the file. Please try again.');
     document.getElementById('uploadFileInput').value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('uploadCoreBtn').addEventListener('click', () => {
+  document.getElementById('uploadCoreFileInput').click();
+});
+
+document.getElementById('uploadCoreFileInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  showUploadBanner('info', '<span class="spinner"></span> Reading and processing Core file "'+esc(file.name)+'"…');
+
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(sheet, {defval:null});
+
+      if(raw.length === 0) throw new Error('The uploaded file has no data rows.');
+      const requiredCols = ['Account_No','Tnx_Date','Amount','Advice_No','Biller_Code'];
+      const missing = requiredCols.filter(c => !(c in raw[0]));
+      if(missing.length) throw new Error('Missing expected column(s): ' + missing.join(', ') + '. Make sure the file has the same columns as the Core dump.');
+
+      // Normalize rows: coalesce Advice_No (when it's a clean 8-char code) with Biller_Code fallback
+      const rows = raw.map(r => {
+        const adv = r.Advice_No === null || r.Advice_No === undefined ? '' : String(r.Advice_No);
+        const effectiveBiller = adv.length === 8 ? adv : r.Biller_Code;
+        return {
+          ACCOUNT_NO: r.Account_No,
+          DATE: excelDateToJs(r.Tnx_Date),
+          AMOUNT: Number(r.Amount) || 0,
+          BILLER_PREFIX: effectiveBiller,
+        };
+      }).filter(r => r.DATE && r.BILLER_PREFIX);
+
+      if(rows.length === 0) throw new Error('Could not read valid dates from the Tnx_Date column.');
+
+      // Group rows by month index found in the file
+      const byMonth = {};
+      rows.forEach(r => {
+        const mi = r.DATE.getMonth();
+        if(!byMonth[mi]) byMonth[mi] = [];
+        byMonth[mi].push(r);
+      });
+      const monthIndices = Object.keys(byMonth).map(Number).sort((a,b)=>a-b);
+      const latestMonthIdx = monthIndices[monthIndices.length-1];
+      const latestYear = byMonth[latestMonthIdx][0].DATE.getFullYear();
+
+      // Upsert monthly Core figures for every month found in the upload
+      monthIndices.forEach(mi => {
+        const monthRows = byMonth[mi];
+        const label = MONTH_ABBR[mi];
+        const coreAgg = aggFromRowsCore(monthRows);
+        upsertMonthRow(CORE, mi, Object.assign({month: label}, coreAgg));
+      });
+
+      // Recompute Top 8 Core Billers from the LATEST month found in this upload (no Top 8 Users for Core)
+      const latestRows = byMonth[latestMonthIdx];
+      TOP8_BILLERS_CORE = top8FromRowsCore(latestRows, r=>r.BILLER_PREFIX, 'prefix');
+      TOP8_MONTH = MONTH_NAMES[latestMonthIdx] + ' ' + latestYear;
+      HAS_UPLOADED_DATA = true;
+
+      saveState();
+      renderAll();
+
+      const monthsTouched = monthIndices.map(mi => MONTH_ABBR[mi]).join(', ');
+      showUploadBanner('success', '&#9989; Processed ' + rows.length.toLocaleString() + ' Core transactions. Updated monthly figures for: <b>' + monthsTouched + '</b>. Top 8 Core Billers recalculated for <b>' + esc(TOP8_MONTH) + '</b> (the most recent month in this file).');
+    }catch(err){
+      console.error(err);
+      showUploadBanner('error', '&#10060; Could not process this Core file: ' + esc(err.message));
+    }
+    document.getElementById('uploadCoreFileInput').value = '';
+  };
+  reader.onerror = function(){
+    showUploadBanner('error', '&#10060; Could not read the file. Please try again.');
+    document.getElementById('uploadCoreFileInput').value = '';
   };
   reader.readAsArrayBuffer(file);
 });
